@@ -38,7 +38,15 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 // Vite emits content-hashed files under /assets — safe to cache for a year; index.html must always be re-validated
 app.use('/assets', express.static(path.join(clientDist, 'assets'), { maxAge: '1y', immutable: true }));
-app.use(express.static(clientDist, { maxAge: '1h' }));
+app.use(
+  express.static(clientDist, {
+    maxAge: '1h',
+    // PWA plumbing must never be served stale, otherwise phones keep an old service worker / manifest for an hour
+    setHeaders: (res, filePath) => {
+      if (/(?:sw\.js|manifest\.webmanifest|offline\.html)$/.test(filePath)) res.set('Cache-Control', 'no-cache');
+    },
+  })
+);
 app.get('*', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(clientDist, 'index.html'));

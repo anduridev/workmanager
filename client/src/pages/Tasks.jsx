@@ -5,6 +5,7 @@ import { dayjs, fmtDate, fmtDateTime, dueLabel, isPast, toDateInput } from '../l
 import { StatusBadge, PriorityBadge, Tag, Empty, Segmented, AzdoBadge, STATUS_LABEL, PRIORITY_LABEL } from '../components/ui';
 import Modal, { Drawer } from '../components/Modal';
 import { useToast } from '../components/Toast';
+import { useIsMobile } from '../lib/useMedia';
 
 const STATUSES = ['todo', 'inprogress', 'hold', 'done'];
 const blank = () => ({ title: '', description: '', status: 'todo', priority: 'medium', project: '', tags: '', dueDate: '' });
@@ -20,6 +21,11 @@ export default function Tasks() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const isMobile = useIsMobile();
+  const [mobileCol, setMobileCol] = useState(localStorage.getItem('workpa_mobilecol') || 'todo');
+  useEffect(() => {
+    localStorage.setItem('workpa_mobilecol', mobileCol);
+  }, [mobileCol]);
 
   const statusFilter = params.get('status') || '';
   const overdueOnly = params.get('overdue') === '1';
@@ -128,8 +134,8 @@ export default function Tasks() {
           </div>
         </div>
         <div className="page-actions">
-          <input className="input input-sm" placeholder="Search tasks & notes…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-          <select className="select input-sm" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: 180 }}>
+          <input className="input input-sm w-220" type="search" placeholder="Search tasks & notes…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <select className="select input-sm w-180" value={project} onChange={(e) => setProject(e.target.value)}>
             <option value="">All projects</option>
             <option value="none">No project</option>
             {projects.map((p) => (
@@ -164,9 +170,21 @@ export default function Tasks() {
         </div>
       )}
 
+      {view === 'board' && isMobile && (
+        <div className="chips status-chips">
+          {STATUSES.map((s) => {
+            const n = visible.filter((t) => t.status === s).length;
+            return (
+              <button key={s} type="button" className={`chip ${mobileCol === s ? 'active' : ''}`} onClick={() => setMobileCol(s)}>
+                {STATUS_LABEL[s]} <span className="n">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       {view === 'board' ? (
         <div className="kanban">
-          {STATUSES.map((s) => {
+          {STATUSES.filter((s) => !isMobile || s === mobileCol).map((s) => {
             const col = visible.filter((t) => t.status === s && (!statusFilter || statusFilter.split(',').includes(s)));
             return (
               <div
@@ -192,7 +210,7 @@ export default function Tasks() {
                     <div
                       key={t._id}
                       className="tcard"
-                      draggable
+                      draggable={!isMobile}
                       onDragStart={(e) => onDragStart(e, t)}
                       onDragEnd={(e) => e.currentTarget.classList.remove('dragging')}
                       onClick={() => openTask(t)}
@@ -214,7 +232,11 @@ export default function Tasks() {
                       </div>
                     </div>
                   ))}
-                  {col.length === 0 && <div className="empty xs" style={{ padding: 16 }}>Drop tasks here</div>}
+                  {col.length === 0 && (
+                    <div className="empty xs" style={{ padding: 16 }}>
+                      {isMobile ? `Nothing ${STATUS_LABEL[s].toLowerCase()}` : 'Drop tasks here'}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -223,7 +245,34 @@ export default function Tasks() {
       ) : (
         <div className="card" style={{ overflowX: 'auto' }}>
           {visible.length === 0 && <Empty icon="☑" text="No tasks match." />}
-          {visible.length > 0 && (
+          {visible.length > 0 && isMobile && (
+            <ul className="list mlist">
+              {visible.map((t) => (
+                <li key={t._id} className="list-item">
+                  <div className="grow clickable" onClick={() => openTask(t)}>
+                    <div className="title">{t.title}</div>
+                    <div className="meta">
+                      <PriorityBadge priority={t.priority} />
+                      {t.project?.name && <span>📁 {t.project.name}</span>}
+                      {t.dueDate && (
+                        <span className={isPast(dayjs(t.dueDate).endOf('day')) && t.status !== 'done' ? 'badge badge-overdue' : ''}>{dueLabel(t.dueDate)}</span>
+                      )}
+                      {t.notes?.length > 0 && <span>✎ {t.notes.length}</span>}
+                      <AzdoBadge azdo={t.azdo} />
+                    </div>
+                  </div>
+                  <select className="select" value={t.status} onChange={(e) => setStatus(t, e.target.value)} aria-label="Status">
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABEL[s]}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              ))}
+            </ul>
+          )}
+          {visible.length > 0 && !isMobile && (
             <table className="task-table">
               <thead>
                 <tr>
@@ -250,7 +299,7 @@ export default function Tasks() {
                       )}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <select className="select input-sm" value={t.status} onChange={(e) => setStatus(t, e.target.value)} style={{ width: 130 }}>
+                      <select className="select input-sm w-130" value={t.status} onChange={(e) => setStatus(t, e.target.value)}>
                         {STATUSES.map((s) => (
                           <option key={s} value={s}>
                             {STATUS_LABEL[s]}

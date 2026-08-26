@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Members as MembersApi, Targets as TargetsApi } from '../lib/api';
 import { dayjs, fmtDate, fmtDateTime, calendarDate, isPast, isToday, toLocalInput, toDateInput } from '../lib/date';
 import { StatusBadge, Avatar, Empty, Segmented, TARGET_STATUS_LABEL, OUTCOME_LABEL } from '../components/ui';
@@ -7,6 +7,7 @@ import Modal, { Drawer } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { specFromDate, describe, WEEKDAYS } from '../lib/schedule';
 import ScheduleFields, { specToPayload, specValid } from '../components/ScheduleFields';
+import { useIsMobile } from '../lib/useMedia';
 
 const REPEATS = [
   { value: 'none', label: 'Once' },
@@ -53,6 +54,17 @@ export default function Team() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const isMobile = useIsMobile();
+  const [teamOpen, setTeamOpen] = useState(false); // phones: the member list is collapsed by default
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('new')) {
+      setTargetForm(blankTarget(memberFilter ? [memberFilter] : []));
+      const next = new URLSearchParams(params);
+      next.delete('new');
+      setParams(next, { replace: true });
+    }
+  }, [params]);
 
   const load = useCallback(async () => {
     const [m, t] = await Promise.all([
@@ -155,11 +167,25 @@ export default function Team() {
 
       <div className="team-layout">
         <div className="card">
-          <div className="card-head">
-            <h3>Team</h3>
+          <div className={`card-head ${isMobile ? 'team-toggle' : ''}`} onClick={() => isMobile && setTeamOpen((o) => !o)}>
+            <h3>
+              {isMobile && <span className={`chev ${teamOpen ? 'open' : ''}`}>›</span>} Team
+              {isMobile && (
+                <span className="muted small" style={{ fontWeight: 400 }}>
+                  · {memberFilter ? members.find((m) => m._id === memberFilter)?.name || '…' : 'Everyone'}
+                </span>
+              )}
+            </h3>
+            {isMobile && <span className="muted xs">{members.length} members · tap to {teamOpen ? 'hide' : 'filter'}</span>}
           </div>
-          <div className="card-body tight">
-            <div className={`member ${!memberFilter ? 'active' : ''}`} onClick={() => setMemberFilter('')}>
+          <div className="card-body tight" style={isMobile && !teamOpen ? { display: 'none' } : undefined}>
+            <div
+              className={`member ${!memberFilter ? 'active' : ''}`}
+              onClick={() => {
+                setMemberFilter('');
+                setTeamOpen(false);
+              }}
+            >
               <span className="avatar" style={{ background: '#334155' }}>
                 ★
               </span>
@@ -169,7 +195,14 @@ export default function Team() {
             </div>
             {members.length === 0 && <div className="empty small">Add your team members to assign targets.</div>}
             {members.map((m) => (
-              <div key={m._id} className={`member ${memberFilter === m._id ? 'active' : ''}`} onClick={() => setMemberFilter(m._id)}>
+              <div
+                key={m._id}
+                className={`member ${memberFilter === m._id ? 'active' : ''}`}
+                onClick={() => {
+                  setMemberFilter(m._id);
+                  setTeamOpen(false);
+                }}
+              >
                 <Avatar name={m.name} />
                 <div className="grow ellipsis">
                   <div className="nm ellipsis">{m.name}</div>

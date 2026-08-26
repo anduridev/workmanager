@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Notes as NotesApi } from '../lib/api';
 import { dayjs, today, fmtDate, fmtDateTime } from '../lib/date';
 import { Empty, Tag } from '../components/ui';
@@ -12,6 +13,17 @@ export default function Notes() {
   const [draft, setDraft] = useState({ title: '', content: '', date: today(), tags: '' });
   const [editing, setEditing] = useState(null);
   const toast = useToast();
+  const composerRef = useRef(null);
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('new')) {
+      composerRef.current?.focus();
+      composerRef.current?.scrollIntoView({ block: 'center' });
+      const next = new URLSearchParams(params);
+      next.delete('new');
+      setParams(next, { replace: true });
+    }
+  }, [params]);
 
   const load = () => NotesApi.list({ q: q || undefined, tag: tag || undefined }).then(setNotes);
   useEffect(() => {
@@ -99,13 +111,14 @@ export default function Notes() {
           <div className="sub">Meeting notes, decisions, ideas — everything dated.</div>
         </div>
         <div className="page-actions">
-          <input className="input input-sm" placeholder="Search notes…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 240 }} />
+          <input className="input input-sm w-240" type="search" placeholder="Search notes…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       </div>
 
       <form className="composer mb" onSubmit={create}>
         <input className="input" placeholder="Title (optional)" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
         <textarea
+          ref={composerRef}
           className="textarea"
           placeholder="Write a note… (Ctrl+Enter to save)"
           value={draft.content}
@@ -114,7 +127,7 @@ export default function Notes() {
         />
         <div className="bar">
           <input className="input input-sm" type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
-          <input className="input input-sm" placeholder="tags, comma separated" value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} style={{ width: 220 }} />
+          <input className="input input-sm w-220" placeholder="tags, comma separated" value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} />
           <div className="grow" />
           <button className="btn btn-primary btn-sm" disabled={!draft.content.trim()}>
             Save note

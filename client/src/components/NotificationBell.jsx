@@ -7,7 +7,7 @@ import Modal from './Modal';
 
 const ICON = { target: '⚑', task: '☑', reminder: '⏰', todo: '☀', system: 'ℹ' };
 
-export default function NotificationBell({ notif }) {
+export default function NotificationBell({ notif, onInstallHelp, standalone }) {
   const [open, setOpen] = useState(false);
   const [digest, setDigest] = useState(null);
   const ref = useRef(null);
@@ -26,7 +26,11 @@ export default function NotificationBell({ notif }) {
   useEffect(() => {
     const onDoc = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
     document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('touchstart', onDoc, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('touchstart', onDoc);
+    };
   }, []);
 
   const openRef = (n) => {
@@ -93,6 +97,17 @@ export default function NotificationBell({ notif }) {
                 {notif.push.supported && (
                   <button className={`btn btn-xs ${notif.push.enabled ? '' : 'btn-primary'}`} onClick={notif.togglePush} disabled={notif.push.busy}>
                     {notif.push.busy ? '…' : notif.push.enabled ? 'Turn off' : 'Enable push'}
+                  </button>
+                )}
+                {!standalone && onInstallHelp && (
+                  <button
+                    className="btn btn-xs"
+                    onClick={() => {
+                      setOpen(false);
+                      onInstallHelp();
+                    }}
+                  >
+                    📲 Add to home screen
                   </button>
                 )}
                 {notif.push.enabled && (

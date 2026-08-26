@@ -110,6 +110,11 @@ Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and app
 
 Local edits waiting to be pushed always win over a pull.
 
+## Phone app (PWA) & mobile layout
+WorkPA is fully usable on a phone: bottom tab bar (Home · Today · Tasks · Team · More), a **+** button for quick-add (task, to-do, reminder, note, target, project), full-screen forms, a one-column board with status chips (tap a task to change status — there's no drag & drop on touch), card lists instead of tables, and hover-only actions always visible.
+
+**Add to home screen / install:** a banner (and *More → Add to home screen*, or the sidebar's **Install app** on desktop) triggers the browser install prompt on Android Chrome/Edge/Samsung and desktop Chrome/Edge. iOS never offers a prompt, so WorkPA shows the steps instead: Safari → Share → *Add to Home Screen*. The service worker has a fetch handler + offline page, which Chrome requires before it treats a site as installable; `sw.js`, the manifest and `offline.html` are served with `Cache-Control: no-cache` so phones never keep a stale one.
+
 ## Push notifications (phone & desktop)
 WorkPA is an installable PWA with Web Push. In the bell menu click **Enable push** — reminders, follow-ups, TFS changes and the morning digest then arrive as system notifications even when the app is closed. VAPID keys are generated automatically and stored in the DB (or set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`).
 
@@ -140,8 +145,10 @@ server/
   services/scheduler.js  Reminder engine
 client/
   src/pages/          Dashboard, Today, Tasks, Notes, Team, Reminders, Login
-  src/components/     Layout, NotificationBell, Toast, Modal, ui helpers
+  src/components/     Layout (sidebar + phone tab bar/FAB), NotificationBell, Toast, Modal/Drawer/Sheet, ui helpers
   src/lib/api.js      Axios client + typed helpers
+  src/lib/install.js  Add-to-home-screen (beforeinstallprompt) support · useMedia.js phone breakpoint hook
+  public/             manifest.webmanifest, sw.js (push + offline fallback), offline.html, icons/
 ```
 
 ## API (all under `/api`, bearer token required except `/auth/*` and `/health`)

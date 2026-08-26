@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Daily } from '../lib/api';
 import { dayjs, today, fmtDate, isPast } from '../lib/date';
 import { Empty } from '../components/ui';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import { useIsMobile } from '../lib/useMedia';
 
 const LEADS = [
   { value: 30, label: '30 min before' },
@@ -27,6 +28,17 @@ export default function Today() {
   const [editing, setEditing] = useState(null); // {id, text, date, time, remindBefore}
   const [focus, setFocus] = useState('');
   const toast = useToast();
+  const isMobile = useIsMobile();
+  const addRef = useRef(null);
+  useEffect(() => {
+    if (params.get('add')) {
+      addRef.current?.focus();
+      addRef.current?.scrollIntoView({ block: 'center' });
+      const next = new URLSearchParams(params);
+      next.delete('add');
+      setParams(next, { replace: true });
+    }
+  }, [params]);
 
   const setDate = (d) => {
     setDateState(d);
@@ -105,7 +117,7 @@ export default function Today() {
           <button className="btn btn-sm" onClick={() => setDate(dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'))}>
             ‹
           </button>
-          <input className="input input-sm" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} style={{ width: 150 }} />
+          <input className="input input-sm w-150" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
           <button className="btn btn-sm" onClick={() => setDate(dayjs(date).add(1, 'day').format('YYYY-MM-DD'))}>
             ›
           </button>
@@ -147,7 +159,7 @@ export default function Today() {
             </div>
             <div className="card-body tight">
               <form onSubmit={add} className="todo-add">
-                <input className="input" placeholder="What do you need to do?" value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} autoFocus />
+                <input ref={addRef} className="input" placeholder="What do you need to do?" value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} autoFocus={!isMobile} />
                 <input className="input" type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value || date })} title="Date" />
                 <input className="input" type="time" value={draft.time} onChange={(e) => setDraft({ ...draft, time: e.target.value })} title="Time (optional)" />
                 <select className="select" value={draft.remindBefore} onChange={(e) => setDraft({ ...draft, remindBefore: e.target.value === '' ? '' : Number(e.target.value) })} disabled={!draft.time} title="Reminder">

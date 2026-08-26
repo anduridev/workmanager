@@ -1,15 +1,26 @@
 {
+  "id": "/",
   "name": "WorkPA — personal work assistant",
   "short_name": "WorkPA",
   "description": "Tasks, daily to-dos, team targets and reminders — your personal work assistant.",
-  "start_url": "/",
+  "lang": "en",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#f3f5f9",
-  "theme_color": "#2563eb",
+  "theme_color": "#ffffff",
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "short_name": "Today", "url": "/today?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My Tasks", "short_name": "Tasks", "url": "/tasks?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "New reminder", "short_name": "Reminder", "url": "/reminders?new=1&source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

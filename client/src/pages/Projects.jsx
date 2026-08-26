@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Projects as ProjectsApi, Integrations } from '../lib/api';
 import { dayjs, fromNow } from '../lib/date';
 import { Empty, AzdoBadge } from '../components/ui';
@@ -14,6 +14,15 @@ export default function Projects() {
   const [q, setQ] = useState('');
   const navigate = useNavigate();
   const toast = useToast();
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('new')) {
+      setForm(blank());
+      const next = new URLSearchParams(params);
+      next.delete('new');
+      setParams(next, { replace: true });
+    }
+  }, [params]);
 
   const [azdo, setAzdo] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -99,7 +108,7 @@ export default function Projects() {
           <div className="sub">Group tasks under a project. Tasks can also live outside any project.</div>
         </div>
         <div className="page-actions">
-          <input className="input input-sm" placeholder="Search projects…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+          <input className="input input-sm w-220" type="search" placeholder="Search projects…" value={q} onChange={(e) => setQ(e.target.value)} />
           <button className="btn btn-primary" onClick={() => setForm(blank())}>
             + New project
           </button>
