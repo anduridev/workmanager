@@ -1,0 +1,132 @@
+# WorkPA — your personal work assistant
+
+A lightweight, single-user work & team manager for a tech lead / project manager. No Jira, no Azure DevOps — just the things you actually need every day:
+
+| Area | What it does |
+| --- | --- |
+| **Dashboard** | Today's list, follow-ups due, overdue/due-soon tasks, in-progress work, team targets this week, recent notes |
+| **Today** | Per-day to-do list with a "main focus", progress bar, carry-over of unfinished items from previous days, 3-week history. Each item can have a **date + time**; you get a reminder **30 min before** (or 10/15/60 min, at the time, or none) |
+| **Projects** | Create / edit / delete projects (name + description) with per-status task counts and progress. "View tasks" filters the board; "+ Task" adds a task straight into the project. Deleting a project keeps its tasks (unlinked) unless you choose "Delete with tasks" |
+| **My Tasks** | Kanban board (drag & drop) or list view. Statuses: To Do / In Progress / On Hold / Done. Priority, **optional project**, tags, due date. Multiple **dated notes** per task and a full status-change history |
+| **Notes** | Standalone journal — meeting notes, decisions, ideas. Grouped by date, searchable, taggable, pinnable |
+| **Team & Targets** | Team members + targets assigned to them. Each target has a target date, a **follow-up reminder** (once → date & time; daily → time + optional start/until; weekly → weekday + time + optional range), and a dated follow-up log (on track / at risk / blocked) |
+| **Reminders** | Ad-hoc "remind me…" nudges: once (date & time), daily / weekdays (time), weekly (weekday + time), monthly (day + time), each with optional start/until. Snoozing a repeating reminder only delays that occurrence — the schedule is untouched |
+| **Notifications** | A server-side scheduler fires reminders as in-app toasts + bell badge + browser notifications (with a short beep). Snooze from the bell |
+
+**Stack:** Node.js + Express + Mongoose (MongoDB) · React 18 + Vite · single deployable service.
+
+**Auth:** single user stored in MongoDB (bcrypt password hash), JWT sessions valid for 30 days. Credentials are never kept in env files.
+
+---
+
+## Run locally
+
+```bash
+# 1. Install everything (root + client)
+npm install
+
+# 2. Configure
+cp .env.example .env      # then edit MONGO_URI and JWT_SECRET
+
+# 3. Create your login (stored in MongoDB as a bcrypt hash — nothing in env files)
+npm run create-user -- yourname yourpassword
+
+# 4. Dev mode (API on :5000, Vite dev server on :5173 with proxy)
+npm run dev
+```
+
+Open http://localhost:5173.
+
+Production-style run (serves the built React app from Express on one port):
+
+```bash
+npm run build
+npm start          # http://localhost:5000
+```
+
+### Environment variables
+
+| Var | Purpose |
+| --- | --- |
+| `MONGO_URI` | MongoDB connection string (Atlas `mongodb+srv://…` or plain `mongodb://…`) |
+| `JWT_SECRET` | Long random string used to sign session tokens (30-day sessions) |
+| `TZ` | Timezone for the scheduler & "today" calculations, e.g. `Asia/Kolkata` |
+| `PORT` | HTTP port (Railway injects this) |
+| `DNS_SERVERS` | Optional. Comma-separated DNS servers for the `+srv` lookup. The app automatically falls back to `8.8.8.8,1.1.1.1` if the OS resolver fails (common on VPN / FortiClient machines) |
+
+---
+
+## Deploy to Railway (single service)
+
+1. Push this folder to a GitHub repo.
+2. In Railway: **New Project → Deploy from GitHub repo** → pick the repo. Railway detects Node via Nixpacks and uses `railway.json`:
+   - build: `npm run build` (installs client deps and builds React into `client/dist`)
+   - start: `npm start` (Express serves API + static React)
+   - healthcheck: `/api/health`
+3. Add variables in the service's **Variables** tab:
+   - `MONGO_URI` — your Atlas string, **or** add Railway's MongoDB plugin and set `MONGO_URI=${{MongoDB.MONGO_URL}}`
+   - `JWT_SECRET` — long random string
+   - `TZ=Asia/Kolkata`
+4. **Settings → Networking → Generate Domain**.
+5. Your login user lives in MongoDB. If you created it locally against the same Atlas cluster, it already works on Railway. Otherwise run once via the Railway CLI: `railway run npm run create-user -- yourname yourpassword`.
+
+You can change your password anytime from the sidebar (**Change password**).
+
+Atlas note: whitelist `0.0.0.0/0` in Atlas Network Access (Railway egress IPs are dynamic), or use Railway's MongoDB plugin.
+
+---
+
+## Azure DevOps sync (optional)
+
+Works with Azure DevOps Services **and on-prem TFS / Azure DevOps Server** (the REST `api-version` is auto-detected, 7.1 down to 3.0). Set these on the server:
+
+```
+AZDO_ORG_URL=http://your-tfs:8080/tfs/DefaultCollection   # or https://dev.azure.com/<org>
+AZDO_PROJECT=<project name>
+AZDO_USERNAME=DOMAIN\user                                 # optional with a PAT
+AZDO_PAT=<personal access token with "Work Items: Read & write">
+```
+
+| WorkPA | Azure DevOps |
+| --- | --- |
+| Project (name, description) | **Product Backlog Item** in state **Approved** (`AZDO_PBI_STATE`), placed in the sprint that is current when it's created |
+| Task (title, description, priority, tags, due date) | **Task**, child of the project's PBI, placed in the **sprint whose dates contain the task's due date** (creation date if no due date; a weekend gap rolls to the next sprint; dates beyond the last defined sprint stay in the backlog). Tasks with no project become standalone Tasks (`AZDO_SYNC_ORPHAN_TASKS=false` to disable) |
+| Task status | `System.State`: todo → *To Do*, inprogress → *In Progress*, done → *Done*, hold → *To Do* + tag `On Hold` |
+| Task note | Discussion entry (`System.History`) |
+| Assigned To | The PAT's own user (override with `AZDO_ASSIGN_TO="Name <DOMAIN\user>"`) — set on creation only, so re-assigning in ADO sticks |
+| Backlog position | New items go to the **top** of their sprint backlog (`AZDO_PLACE_ON_TOP=false` to disable) |
+| Task moved to another project | Re-parented under the new PBI |
+| Deleting in WorkPA | Nothing is deleted in ADO (a deleted project just un-parents its tasks) |
+
+Defaults are for the **Scrum** process. For **Agile** set `AZDO_PBI_TYPE=User Story` and `AZDO_STATE_MAP={"todo":"New","inprogress":"Active","hold":"New","done":"Closed"}`. Optional `AZDO_AREA_PATH` / `AZDO_ITERATION_PATH` are applied to everything created.
+
+Sync happens in the background right after each save — creates **and every later edit** (title, description, priority, tags, due date → sprint, project → parent, status → state, notes). Each change is flagged `pendingSync` until TFS confirms it, so nothing is lost across restarts. The ADO id (link) or the error shows as a badge on the project/task. The **Projects** page shows connection status, validates the state mapping against your process, and has **Sync all now** to backfill existing items. Failed items retry automatically every 5 minutes. Get a PAT at `https://dev.azure.com/<org>/_usersSettings/tokens`.
+
+## How reminders work
+
+- Every 30 s the server checks for: team targets whose `followUpAt` (or snooze) has passed, reminders whose `remindAt` (or snooze) has passed, to-do items whose `scheduledAt − remindBefore` has passed, and tasks due today/overdue (once a day, after 9 AM).
+- Each creates a **Notification**. The browser polls every 30 s (and immediately when the tab regains focus), shows a toast, plays a beep, and — if you've allowed it — a native browser notification.
+- Snoozing re-arms the follow-up/reminder for later. Repeating items advance to their next occurrence automatically.
+- Keep the app open in a pinned browser tab during the day and it behaves like a PA. (There's no email/SMS channel — this is intentionally simple.)
+
+---
+
+## Project layout
+
+```
+server/
+  index.js            Express app, serves client/dist in production
+  config/db.js        Mongo connection (+ SRV DNS fallback)
+  middleware/auth.js  Single-user JWT auth
+  models/             User, Project, Task, Note, DailyTodo, Member, Target, Reminder, Notification
+  routes/             REST endpoints per model + /dashboard
+  services/scheduler.js  Reminder engine
+client/
+  src/pages/          Dashboard, Today, Tasks, Notes, Team, Reminders, Login
+  src/components/     Layout, NotificationBell, Toast, Modal, ui helpers
+  src/lib/api.js      Axios client + typed helpers
+```
+
+## API (all under `/api`, bearer token required except `/auth/*` and `/health`)
+
+`/projects` · `/tasks?project=<id|none>` `/tasks/:id/notes` `/tasks/:id/status` · `/notes` · `/daily?date=` `/daily/:date/items` `/daily/:date/carryover` · `/members` · `/targets` `/targets/:id/followups` `/targets/:id/snooze` · `/reminders` `/reminders/:id/snooze` · `/notifications` · `/dashboard`
