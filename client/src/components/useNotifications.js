@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Notifications } from '../lib/api';
 import { useToast } from './Toast';
+import { registerServiceWorker, currentSubscription, enablePush, disablePush, pushSupported } from '../lib/push';
 
 const POLL_MS = 30 * 1000;
 
@@ -11,6 +12,7 @@ const POLL_MS = 30 * 1000;
 export function useNotifications() {
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [push, setPush] = useState({ supported: pushSupported(), enabled: false, busy: false });
   const toast = useToast();
   const firstLoad = useRef(true);
   const audioRef = useRef(null);
@@ -36,7 +38,8 @@ export function useNotifications() {
       { label: 'Mark read', onClick: () => markRead(n._id) },
     ]);
     beep();
-    if ('Notification' in window && Notification.permission === 'granted') {
+    // When Web Push is enabled the service worker already showed a system notification — don't double up
+    if (!push.enabled && 'Notification' in window && Notification.permission === 'granted') {
       try {
         const bn = new Notification(n.title, { body: n.body, icon: '/favicon.svg', tag: String(n._id) });
         bn.onclick = () => window.focus();
@@ -86,6 +89,28 @@ export function useNotifications() {
   };
 
   useEffect(() => {
+    registerServiceWorker().then(() => currentSubscription().then((s) => setPush((p) => ({ ...p, enabled: Boolean(s) }))));
+  }, []);
+
+  const togglePush = async () => {
+    setPush((p) => ({ ...p, busy: true }));
+    try {
+      if (push.enabled) {
+        await disablePush();
+        setPush((p) => ({ ...p, enabled: false, busy: false }));
+        toast.success('Push notifications disabled on this device');
+      } else {
+        await enablePush();
+        setPush((p) => ({ ...p, enabled: true, busy: false }));
+        toast.success('Push notifications enabled', 'Reminders will reach this device even when the app is closed.');
+      }
+    } catch (e) {
+      setPush((p) => ({ ...p, busy: false }));
+      toast.error(e.message);
+    }
+  };
+
+  useEffect(() => {
     refresh();
     const t = setInterval(refresh, POLL_MS);
     const onVis = () => document.visibilityState === 'visible' && refresh();
@@ -100,5 +125,5 @@ export function useNotifications() {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   };
 
-  return { items, unreadCount, refresh, markRead, markAllRead, remove, clearRead, requestPermission };
+  return { items, unreadCount, refresh, markRead, markAllRead, remove, clearRead, requestPermission, push, togglePush };
 }

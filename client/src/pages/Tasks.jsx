@@ -440,6 +440,8 @@ function TaskDrawer({ task, onClose, onChange, onEdit, onDelete, setStatus }) {
           </span>
         )}
         {task.azdo?.iterationPath && <span className="badge badge-outline">🏁 {task.azdo.iterationPath.split('\\').pop()}</span>}
+        {task.azdo?.assignedTo && <span className="badge badge-outline">👤 {task.azdo.assignedTo}</span>}
+        {task.azdo?.state && <span className="badge badge-outline">TFS: {task.azdo.state}</span>}
         <span>Created {fmtDateTime(task.createdAt)}</span>
         {task.completedAt && <span>· Completed {fmtDateTime(task.completedAt)}</span>}
         {task.tags?.map((t) => (
@@ -520,6 +522,7 @@ function TaskDrawer({ task, onClose, onChange, onEdit, onDelete, setStatus }) {
               <span key={i} className="h">
                 {h.from ? `${STATUS_LABEL[h.from]} → ` : ''}
                 {STATUS_LABEL[h.to]} · {fmtDateTime(h.at)}
+                {h.source === 'tfs' && ' · from TFS'}
               </span>
             ))}
           </div>

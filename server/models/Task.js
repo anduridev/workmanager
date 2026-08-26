@@ -9,7 +9,7 @@ const NoteSchema = new mongoose.Schema(
 );
 
 const StatusHistorySchema = new mongoose.Schema(
-  { from: String, to: { type: String, enum: STATUSES }, at: { type: Date, default: Date.now } },
+  { from: String, to: { type: String, enum: STATUSES }, at: { type: Date, default: Date.now }, source: { type: String } }, // source: 'tfs' when pulled
   { _id: false }
 );
 
@@ -35,6 +35,10 @@ const TaskSchema = new mongoose.Schema(
       parentId: Number, // PBI id it is currently parented under
       state: String,
       iterationPath: String,
+      assignedTo: String,
+      dueDateSynced: Date, // due date at the time the sprint was last computed
+      rev: Number,
+      pulledAt: Date,
       pendingSync: Boolean, // set when the task changed locally; cleared after a successful push
       syncedAt: Date,
       error: String,

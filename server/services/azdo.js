@@ -313,7 +313,10 @@ async function taskOps(task, { create }) {
   const tags = [APP_TAG, ...(task.tags || [])];
   if (task.status === 'hold') tags.push(HOLD_TAG);
   const desc = [task.description, task.dueDate && `Due: ${dayjs(task.dueDate).format('DD MMM YYYY')}`].filter(Boolean).join('\n\n');
-  const iteration = await iterationFor(taskDate(task));
+  // Sprint: computed from the due date on create, and again only when the due date changes.
+  // Otherwise TFS wins — if you drag the task to another sprint there, WorkPA leaves it alone.
+  const dueChanged = String(task.dueDate || '') !== String(task.azdo?.dueDateSynced || '');
+  const iteration = create || dueChanged || !task.azdo?.iterationPath ? await iterationFor(taskDate(task)) : null;
   const ops = [
     op('System.Title', task.title),
     op('System.Description', html(desc)),
@@ -363,7 +366,7 @@ async function syncProject(projectId) {
     // New PBIs start in the process's initial state (New); move them to the configured state (Approved)
     const wanted = config().pbiState;
     if (create && wanted && wi.fields?.['System.State'] !== wanted) wi = await updateWorkItem(wi.id, [op('System.State', wanted)]);
-    markOk(project, wi, { iterationPath: iteration || project.azdo?.iterationPath, state: wi.fields?.['System.State'] });
+    markOk(project, wi, { iterationPath: iteration || project.azdo?.iterationPath, state: wi.fields?.['System.State'], rev: wi.rev });
   } catch (e) {
     markErr(project, e);
     console.warn(`[azdo] project "${project.name}": ${e.message}`);
@@ -409,7 +412,14 @@ async function syncTask(taskId) {
       }
       wi = await updateWorkItem(task.azdo.id, ops);
     }
-    markOk(task, wi, { parentId, state: wi.fields?.['System.State'], iterationPath: wi.fields?.['System.IterationPath'] || iteration });
+    markOk(task, wi, {
+      parentId,
+      state: wi.fields?.['System.State'],
+      iterationPath: wi.fields?.['System.IterationPath'] || iteration || task.azdo?.iterationPath,
+      assignedTo: identityName(wi.fields?.['System.AssignedTo']) || task.azdo?.assignedTo,
+      dueDateSynced: task.dueDate || null,
+      rev: wi.rev,
+    });
   } catch (e) {
     markErr(task, e);
     console.warn(`[azdo] task "${task.title}": ${e.message}`);
@@ -469,6 +479,107 @@ async function pendingCounts() {
   return { projects, tasks, projectErrors, taskErrors };
 }
 
+// ---------- pull: bring changes made in TFS back into WorkPA ----------
+const identityName = (v) => (v && typeof v === 'object' ? v.displayName || v.uniqueName : typeof v === 'string' ? v.replace(/\s*<.*>$/, '') : '');
+
+/** Reverse state mapping: TFS state -> WorkPA status (hold is kept when TFS state is To Do and the On Hold tag is present). */
+function statusFromState(state, tags, currentStatus) {
+  const map = config().stateMap;
+  if (map.done === state) return 'done';
+  if (map.inprogress === state) return 'inprogress';
+  if (map.todo === state) {
+    if ((tags || '').split(';').map((s) => s.trim()).includes(HOLD_TAG)) return 'hold';
+    return currentStatus === 'hold' && map.hold === state ? 'hold' : 'todo';
+  }
+  if (map.hold === state) return 'hold';
+  return null; // unknown / Removed etc. -> leave local status alone
+}
+
+/**
+ * Fetch every linked work item (batched) and apply remote changes locally:
+ * - task state -> status (with a status-history entry and a notification)
+ * - assignee / sprint / rev -> stored for display
+ * Items with a local change still waiting to be pushed (pendingSync) are skipped — local wins until pushed.
+ */
+async function pullChanges() {
+  if (!enabled()) return { enabled: false, changed: 0 };
+  const Task = require('../models/Task');
+  const Project = require('../models/Project');
+  const { notify } = require('./notify');
+  const fields = ['System.State', 'System.AssignedTo', 'System.IterationPath', 'System.Tags', 'System.Title', 'System.Rev', 'System.ChangedBy'].join(',');
+  const c = config();
+
+  const fetchBatch = async (ids) => {
+    const out = [];
+    for (let i = 0; i < ids.length; i += 150) {
+      const chunk = ids.slice(i, i + 150);
+      const r = await request('GET', `${c.orgUrl}/_apis/wit/workitems?ids=${chunk.join(',')}&fields=${fields}&errorPolicy=omit`);
+      out.push(...(r.value || []));
+    }
+    return out;
+  };
+
+  let changed = 0;
+  // Tasks
+  const tasks = await Task.find({ 'azdo.id': { $exists: true }, 'azdo.pendingSync': { $ne: true } }).select('title status tags azdo statusHistory completedAt');
+  if (tasks.length) {
+    const byId = new Map(tasks.map((t) => [t.azdo.id, t]));
+    const items = await fetchBatch([...byId.keys()]);
+    for (const wi of items) {
+      const t = byId.get(wi.id);
+      if (!t) continue;
+      const f = wi.fields || {};
+      const state = f['System.State'];
+      const set = {
+        'azdo.state': state,
+        'azdo.assignedTo': identityName(f['System.AssignedTo']) || '',
+        'azdo.iterationPath': f['System.IterationPath'],
+        'azdo.rev': wi.rev,
+        'azdo.pulledAt': new Date(),
+      };
+      const newStatus = statusFromState(state, f['System.Tags'], t.status);
+      if (newStatus && newStatus !== t.status) {
+        set.status = newStatus;
+        set.completedAt = newStatus === 'done' ? new Date() : null;
+        await Task.updateOne({ _id: t._id }, { $set: set, $push: { statusHistory: { from: t.status, to: newStatus, at: new Date(), source: 'tfs' } } });
+        const by = identityName(f['System.ChangedBy']);
+        await notify({
+          kind: 'task',
+          title: `TFS: ${t.title} → ${STATUS_LABEL[newStatus]}`,
+          body: [`Work item #${wi.id} is now "${state}"`, by && `changed by ${by}`].filter(Boolean).join(' · '),
+          refType: 'Task',
+          refId: t._id,
+          link: `/tasks/${t._id}`,
+        });
+        changed++;
+      } else {
+        await Task.updateOne({ _id: t._id }, { $set: set });
+      }
+    }
+    // Linked items that TFS no longer returns (deleted/destroyed) -> flag so the badge shows it
+    const returned = new Set(items.map((i) => i.id));
+    for (const [id, t] of byId) {
+      if (!returned.has(id)) await Task.updateOne({ _id: t._id }, { $set: { 'azdo.error': `Work item #${id} not found in TFS (deleted?)`, 'azdo.erroredAt': new Date() } });
+    }
+  }
+  // Projects (PBIs): informational only — state, assignee, sprint
+  const projects = await Project.find({ 'azdo.id': { $exists: true }, 'azdo.pendingSync': { $ne: true } }).select('name azdo');
+  if (projects.length) {
+    const byId = new Map(projects.map((p) => [p.azdo.id, p]));
+    const items = await fetchBatch([...byId.keys()]);
+    for (const wi of items) {
+      const p = byId.get(wi.id);
+      if (!p) continue;
+      const f = wi.fields || {};
+      await Project.updateOne(
+        { _id: p._id },
+        { $set: { 'azdo.state': f['System.State'], 'azdo.assignedTo': identityName(f['System.AssignedTo']) || '', 'azdo.iterationPath': f['System.IterationPath'], 'azdo.rev': wi.rev, 'azdo.pulledAt': new Date() } }
+      );
+    }
+  }
+  return { enabled: true, changed, tasks: tasks.length, projects: projects.length };
+}
+
 // ---------- fire-and-forget queue (serialised so parent creation / re-parenting stay ordered) ----------
 let queue = Promise.resolve();
 function enqueue(fn) {
@@ -499,6 +610,7 @@ module.exports = {
   syncTask,
   syncNote,
   syncAll,
+  pullChanges,
   pendingCounts,
   queueProject,
   queueTask,

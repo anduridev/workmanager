@@ -102,6 +102,23 @@ Defaults are for the **Scrum** process. For **Agile** set `AZDO_PBI_TYPE=User St
 
 Sync happens in the background right after each save — creates **and every later edit** (title, description, priority, tags, due date → sprint, project → parent, status → state, notes). Each change is flagged `pendingSync` until TFS confirms it, so nothing is lost across restarts. The ADO id (link) or the error shows as a badge on the project/task. The **Projects** page shows connection status, validates the state mapping against your process, and has **Sync all now** to backfill existing items. Failed items retry automatically every 5 minutes. Get a PAT at `https://dev.azure.com/<org>/_usersSettings/tokens`.
 
+### Two-way: changes made in TFS come back
+Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and applies remote changes:
+- state → task status (*Done* → done, *In Progress* → inprogress, *To Do* → todo, or hold when the `On Hold` tag is present), with a status-history entry marked "from TFS" and a notification ("TFS: <task> → Done · changed by Ravi")
+- assignee and sprint are stored and shown on the task; a sprint moved in TFS is kept until you change the task's due date in WorkPA
+- items deleted in TFS get a red badge so you notice
+
+Local edits waiting to be pushed always win over a pull.
+
+## Push notifications (phone & desktop)
+WorkPA is an installable PWA with Web Push. In the bell menu click **Enable push** — reminders, follow-ups, TFS changes and the morning digest then arrive as system notifications even when the app is closed. VAPID keys are generated automatically and stored in the DB (or set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`).
+
+- Android / desktop Chrome, Edge, Firefox: works directly.
+- iPhone / iPad (iOS 16.4+): first **Share → Add to Home Screen**, open WorkPA from the icon, then enable push.
+
+## Morning digest
+At **09:00 on weekdays** (`DIGEST_HOUR`, `DIGEST_MINUTE`, `DIGEST_WEEKDAYS_ONLY=false` for every day) you get one notification with: today's focus, to-dos (first timed one), follow-ups due, overdue and due-today tasks, team targets due, reminders, and what's in progress. Preview or send it any time from the bell menu (**Today's digest**).
+
 ## How reminders work
 
 - Every 30 s the server checks for: team targets whose `followUpAt` (or snooze) has passed, reminders whose `remindAt` (or snooze) has passed, to-do items whose `scheduledAt − remindBefore` has passed, and tasks due today/overdue (once a day, after 9 AM).

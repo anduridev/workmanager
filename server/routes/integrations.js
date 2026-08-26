@@ -28,7 +28,17 @@ router.post(
   wrap(async (req, res) => {
     if (!azdo.enabled()) return res.status(400).json({ error: 'Azure DevOps is not configured' });
     const result = await azdo.syncAll({ force: req.body?.force === true });
+    result.pull = await azdo.pullChanges();
     res.json(result);
+  })
+);
+
+// Pull changes made in Azure DevOps / TFS (state, assignee, sprint) into WorkPA now
+router.post(
+  '/azdo/pull',
+  wrap(async (req, res) => {
+    if (!azdo.enabled()) return res.status(400).json({ error: 'Azure DevOps is not configured' });
+    res.json(await azdo.pullChanges());
   })
 );
 

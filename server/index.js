@@ -29,6 +29,7 @@ app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/integrations', require('./routes/integrations'));
+app.use('/api/push', require('./routes/push'));
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));

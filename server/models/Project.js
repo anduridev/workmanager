@@ -11,6 +11,9 @@ const ProjectSchema = new mongoose.Schema(
       apiUrl: String,
       iterationPath: String,
       state: String,
+      assignedTo: String,
+      rev: Number,
+      pulledAt: Date,
       pendingSync: Boolean, // set when the project changed locally; cleared after a successful push
       syncedAt: Date,
       error: String,

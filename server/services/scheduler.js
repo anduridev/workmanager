@@ -1,14 +1,15 @@
 /**
- * Reminder scheduler: runs every 30s and turns due follow-ups / reminders / to-do items / task due dates
- * into Notification documents, which the client polls and shows as toasts + browser notifications.
+ * Scheduler: runs every 30s and turns due follow-ups / reminders / to-do items / task due dates
+ * into notifications (in-app + Web Push). Also runs the morning digest and the Azure DevOps retry/pull jobs.
  */
 const dayjs = require('dayjs');
 const Target = require('../models/Target');
 const Reminder = require('../models/Reminder');
 const Task = require('../models/Task');
 const DailyTodo = require('../models/DailyTodo');
-const Notification = require('../models/Notification');
 const { nextOccurrence } = require('./schedule');
+const { notify } = require('./notify');
+const { processDigest } = require('./digest');
 
 const INTERVAL_MS = 30 * 1000;
 let running = false;
@@ -31,7 +32,7 @@ async function processTargets(now) {
 
   for (const t of due) {
     const who = fmtMembers(t);
-    await Notification.create({
+    await notify({
       kind: 'target',
       title: `Follow up: ${t.title}`,
       body: [who && `With ${who}`, `Scheduled ${fmtTime(t.followUpAt)}`, t.targetDate && `Target date ${dayjs(t.targetDate).format('DD MMM')}`]
@@ -46,13 +47,9 @@ async function processTargets(now) {
     if (t.followUpRepeat === 'none') {
       t.reminderSent = true;
     } else if (!wasSnoozed || !dayjs(t.followUpAt).isAfter(now)) {
-      // Advance the schedule (a snooze of an already-advanced occurrence must not advance it again)
       const next = nextOccurrence(t.followUpAt, now, t.followUpRepeat);
-      if (!next || (t.followUpUntil && dayjs(next).isAfter(t.followUpUntil))) {
-        t.followUpAt = undefined; // schedule finished
-      } else {
-        t.followUpAt = next;
-      }
+      if (!next || (t.followUpUntil && dayjs(next).isAfter(t.followUpUntil))) t.followUpAt = undefined;
+      else t.followUpAt = next;
     }
     await t.save();
   }
@@ -61,7 +58,7 @@ async function processTargets(now) {
 async function processReminders(now) {
   const due = await Reminder.find({ done: false, ...dueFilter('remindAt', now.toDate()) });
   for (const r of due) {
-    await Notification.create({
+    await notify({
       kind: 'reminder',
       title: r.title,
       body: [r.body, `Scheduled ${fmtTime(r.remindAt)}`].filter(Boolean).join(' · '),
@@ -85,7 +82,7 @@ async function processReminders(now) {
 
 // To-do items: notify `remindBefore` minutes ahead of scheduledAt (once per item)
 async function processTodos(now) {
-  const horizon = now.add(2, 'hour').toDate(); // largest lead we support is 60 min; keep the query small
+  const horizon = now.add(2, 'hour').toDate();
   const docs = await DailyTodo.find({ 'items.scheduledAt': { $lte: horizon, $gte: now.subtract(1, 'day').toDate() } });
   for (const doc of docs) {
     let changed = false;
@@ -97,7 +94,7 @@ async function processTodos(now) {
       const tooOld = dayjs(item.scheduledAt).isBefore(now.subtract(1, 'day'));
       if (!tooOld) {
         const minsLeft = Math.max(0, Math.round(dayjs(item.scheduledAt).diff(now, 'minute')));
-        await Notification.create({
+        await notify({
           kind: 'todo',
           title: minsLeft > 0 ? `In ${minsLeft} min: ${item.text}` : `Now: ${item.text}`,
           body: `Scheduled ${dayjs(item.scheduledAt).format('DD MMM, hh:mm A')}`,
@@ -124,7 +121,7 @@ async function processTaskDueDates(now) {
   });
   for (const t of tasks) {
     const overdue = dayjs(t.dueDate).isBefore(now.startOf('day'));
-    await Notification.create({
+    await notify({
       kind: 'task',
       title: overdue ? `Overdue task: ${t.title}` : `Task due today: ${t.title}`,
       body: overdue ? `Was due ${dayjs(t.dueDate).format('DD MMM')}` : '',
@@ -137,9 +134,9 @@ async function processTaskDueDates(now) {
   }
 }
 
-// Retry unsynced / errored Azure DevOps items every ~5 minutes
+// Azure DevOps: every ~5 min retry unsynced/errored pushes, then pull remote changes
 let azdoTicks = 0;
-async function processAzdoRetry() {
+async function processAzdo() {
   const azdo = require('./azdo');
   if (!azdo.enabled()) return;
   if (++azdoTicks % 10 !== 0) return;
@@ -148,20 +145,28 @@ async function processAzdoRetry() {
     const r = await azdo.syncAll({ limit: 50 });
     console.log(`[azdo] retry: projects ${r.projects.synced} ok/${r.projects.failed} failed, tasks ${r.tasks.synced} ok/${r.tasks.failed} failed`);
   }
+  const p = await azdo.pullChanges();
+  if (p.changed) console.log(`[azdo] pull: ${p.changed} item(s) updated from TFS`);
 }
 
 async function tick() {
   if (running) return;
   running = true;
   const now = dayjs();
+  const step = async (name, fn) => {
+    try {
+      await fn(now);
+    } catch (err) {
+      console.error(`[scheduler] ${name}:`, err.message);
+    }
+  };
   try {
-    await processTargets(now);
-    await processReminders(now);
-    await processTodos(now);
-    await processTaskDueDates(now);
-    await processAzdoRetry();
-  } catch (err) {
-    console.error('[scheduler] error:', err.message);
+    await step('targets', processTargets);
+    await step('reminders', processReminders);
+    await step('todos', processTodos);
+    await step('taskDueDates', processTaskDueDates);
+    await step('digest', processDigest);
+    await step('azdo', processAzdo);
   } finally {
     running = false;
   }

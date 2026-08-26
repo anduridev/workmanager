@@ -35,7 +35,10 @@ export default function Projects() {
     setSyncing(true);
     try {
       const r = await Integrations.azdoSyncAll(false);
-      toast.success('Azure DevOps sync finished', `Projects ${r.projects.synced} ok / ${r.projects.failed} failed · Tasks ${r.tasks.synced} ok / ${r.tasks.failed} failed`);
+      toast.success(
+        'Azure DevOps sync finished',
+        `Pushed: projects ${r.projects.synced} ok / ${r.projects.failed} failed · tasks ${r.tasks.synced} ok / ${r.tasks.failed} failed · Pulled: ${r.pull?.changed || 0} change(s) from TFS`
+      );
       load();
       loadAzdo();
     } catch (e) {
@@ -135,8 +138,8 @@ export default function Projects() {
                 <span key={w} className="warn">⚠ {w}</span>
               ))}
               <div className="grow" />
-              <button className="btn btn-sm" onClick={syncAll} disabled={syncing}>
-                {syncing ? 'Syncing…' : 'Sync all now'}
+              <button className="btn btn-sm" onClick={syncAll} disabled={syncing} title="Push pending changes to TFS and pull state/assignee/sprint changes back">
+                {syncing ? 'Syncing…' : 'Sync now (push + pull)'}
               </button>
             </>
           ) : (

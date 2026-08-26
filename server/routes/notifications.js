@@ -16,6 +16,22 @@ router.get(
   })
 );
 
+// Preview / send the morning digest now
+router.get(
+  '/digest',
+  wrap(async (req, res) => {
+    const { buildDigest } = require('../services/digest');
+    res.json(await buildDigest());
+  })
+);
+router.post(
+  '/digest',
+  wrap(async (req, res) => {
+    const { sendDigest } = require('../services/digest');
+    res.json(await sendDigest());
+  })
+);
+
 router.patch(
   '/read-all',
   wrap(async (req, res) => {

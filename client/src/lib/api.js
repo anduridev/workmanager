@@ -101,8 +101,17 @@ export const Reminders = {
   remove: (id) => api.delete(`/reminders/${id}`),
 };
 
+export const Push = {
+  publicKey: () => api.get('/push/vapid-public-key'),
+  subscribe: (subscription, label) => api.post('/push/subscribe', { subscription, label }),
+  unsubscribe: (endpoint) => api.post('/push/unsubscribe', { endpoint }),
+  test: () => api.post('/push/test'),
+};
+
 export const Notifications = {
   list: (unread) => api.get('/notifications', { params: { unread } }),
+  digestPreview: () => api.get('/notifications/digest'),
+  sendDigest: () => api.post('/notifications/digest'),
   read: (id) => api.patch(`/notifications/${id}/read`),
   readAll: () => api.patch('/notifications/read-all'),
   remove: (id) => api.delete(`/notifications/${id}`),
@@ -112,6 +121,7 @@ export const Notifications = {
 export const Integrations = {
   azdo: () => api.get('/integrations/azdo'),
   azdoSyncAll: (force) => api.post('/integrations/azdo/sync-all', { force }),
+  azdoPull: () => api.post('/integrations/azdo/pull'),
   azdoSyncProject: (id) => api.post(`/integrations/azdo/sync/project/${id}`),
   azdoSyncTask: (id) => api.post(`/integrations/azdo/sync/task/${id}`),
 };
