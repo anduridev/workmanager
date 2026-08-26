@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import { useIsMobile } from '../lib/useMedia';
 
 const STATUSES = ['todo', 'inprogress', 'hold', 'done'];
+const PRIO_BAR = { low: 'border-l-slate-300', medium: 'border-l-cyan-400', high: 'border-l-amber-400', urgent: 'border-l-red-500' };
 const COL_TINT = { todo: 'bg-slate-100', inprogress: 'bg-primary-50', hold: 'bg-amber-50', done: 'bg-emerald-50' };
 const blank = () => ({ title: '', description: '', status: 'todo', priority: 'medium', project: '', tags: '', dueDate: '' });
 
@@ -211,7 +212,7 @@ export default function Tasks() {
                   {col.map((t) => (
                     <div
                       key={t._id}
-                      className="tcard"
+                      className={`tcard ${PRIO_BAR[t.priority] || PRIO_BAR.medium}`}
                       draggable={!isMobile}
                       onDragStart={(e) => onDragStart(e, t)}
                       onDragEnd={(e) => e.currentTarget.classList.remove('dragging')}

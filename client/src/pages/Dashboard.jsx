@@ -14,31 +14,32 @@ function greeting() {
 }
 
 const TONES = {
-  indigo: 'bg-primary-50 text-primary-600',
-  slate: 'bg-slate-100 text-slate-600',
-  amber: 'bg-amber-50 text-amber-600',
-  red: 'bg-red-50 text-red-600',
-  green: 'bg-emerald-50 text-emerald-600',
+  indigo: { num: 'text-primary-600', tile: 'bg-primary-50 text-primary-600' },
+  slate: { num: 'text-slate-900', tile: 'bg-slate-100 text-slate-500' },
+  amber: { num: 'text-amber-600', tile: 'bg-amber-50 text-amber-600' },
+  red: { num: 'text-red-600', tile: 'bg-red-50 text-red-600' },
+  green: { num: 'text-emerald-600', tile: 'bg-emerald-50 text-emerald-600' },
 };
 
-function Stat({ label, value, tone = 'slate', onClick, hot }) {
+function Stat({ label, value, tone = 'slate', onClick, hot, icon }) {
+  const t = TONES[hot ? 'red' : tone];
   return (
-    <button
-      onClick={onClick}
-      className="card flex items-center gap-3 p-4 text-left transition hover:border-slate-300 hover:shadow-md max-md:gap-2.5 max-md:p-3"
-    >
-      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-lg font-bold tabular-nums max-md:h-9 max-md:w-9 max-md:text-base ${TONES[hot ? 'red' : tone]}`}>{value}</span>
-      <span className="text-[13px] font-medium leading-tight text-slate-600 max-md:text-xs">{label}</span>
+    <button onClick={onClick} className="card flex items-start justify-between gap-2 p-5 text-left transition hover:-translate-y-px hover:shadow-lift max-md:p-4">
+      <span>
+        <span className={`block text-3xl font-extrabold tabular-nums leading-none tracking-tight max-md:text-2xl ${t.num}`}>{value}</span>
+        <span className="mt-2 block text-[13px] font-semibold text-slate-500">{label}</span>
+      </span>
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${t.tile}`}>{icon}</span>
     </button>
   );
 }
 
-function Section({ icon, title, right, children }) {
+function Section({ icon, title, right, children, tone = 'bg-primary-50 text-primary-600' }) {
   return (
     <div className="card">
       <div className="card-head">
         <h2>
-          <span className="text-slate-400">{icon}</span>
+          <span className={`grid h-8 w-8 place-items-center rounded-lg ${tone}`}>{icon}</span>
           {title}
         </h2>
         {right}
@@ -79,33 +80,48 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-[28px]">{greeting()} 👋</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {followDue > 0 || overdue > 0
-              ? `You have ${followDue ? `${followDue} follow-up${followDue > 1 ? 's' : ''}` : ''}${followDue && overdue ? ' and ' : ''}${
-                  overdue ? `${overdue} overdue task${overdue > 1 ? 's' : ''}` : ''
-                } needing attention.`
-              : 'Nothing overdue. Nice — keep the momentum going.'}
-          </p>
+      <div className="relative mb-5 overflow-hidden rounded-3xl bg-brand p-7 text-white shadow-glow max-md:rounded-2xl max-md:p-5">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -bottom-28 right-32 h-64 w-64 rounded-full bg-white/10" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-white/70">{dayjs().format('dddd, DD MMMM')}</div>
+            <h1 className="mt-1.5 text-[32px] font-extrabold leading-tight tracking-tight max-md:text-[26px]">{greeting()} 👋</h1>
+            <p className="mt-2 max-w-xl text-[15px] text-white/85">
+              {followDue > 0 || overdue > 0
+                ? `You have ${followDue ? `${followDue} follow-up${followDue > 1 ? 's' : ''}` : ''}${followDue && overdue ? ' and ' : ''}${
+                    overdue ? `${overdue} overdue task${overdue > 1 ? 's' : ''}` : ''
+                  } needing attention.`
+                : 'Nothing overdue. Nice — keep the momentum going.'}
+            </p>
+          </div>
+          {data.daily.focus ? (
+            <div className="rounded-2xl bg-white/15 px-4 py-3 backdrop-blur max-md:w-full">
+              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/70">Today's focus</div>
+              <div className="mt-0.5 text-[15px] font-semibold">🎯 {data.daily.focus}</div>
+            </div>
+          ) : (
+            <Link to="/today" className="rounded-xl bg-white/15 px-4 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/25">
+              Set today's focus →
+            </Link>
+          )}
         </div>
-        <div className="hidden text-sm text-slate-500 md:block">{dayjs().format('dddd, DD MMMM')}</div>
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <Stat label="In progress" value={data.counts.inprogress} tone="indigo" onClick={() => navigate('/tasks?status=inprogress')} />
-        <Stat label="To do" value={data.counts.todo} tone="slate" onClick={() => navigate('/tasks?status=todo')} />
-        <Stat label="On hold" value={data.counts.hold} tone="amber" onClick={() => navigate('/tasks?status=hold')} />
-        <Stat label="Overdue" value={overdue} tone="slate" hot={overdue > 0} onClick={() => navigate('/tasks?status=todo,inprogress,hold&overdue=1')} />
-        <Stat label="Follow-ups due" value={followDue} tone="slate" hot={followDue > 0} onClick={() => navigate('/team')} />
-        <Stat label="Done this week" value={data.doneThisWeek} tone="green" onClick={() => navigate('/tasks?status=done')} />
+        <Stat label="In progress" value={data.counts.inprogress} tone="indigo" icon={<CheckSquareIcon size={18} />} onClick={() => navigate('/tasks?status=inprogress')} />
+        <Stat label="To do" value={data.counts.todo} tone="slate" icon={<CheckSquareIcon size={18} />} onClick={() => navigate('/tasks?status=todo')} />
+        <Stat label="On hold" value={data.counts.hold} tone="amber" icon={<ClockIcon size={18} />} onClick={() => navigate('/tasks?status=hold')} />
+        <Stat label="Overdue" value={overdue} tone="slate" hot={overdue > 0} icon={<span className="text-base">⚠</span>} onClick={() => navigate('/tasks?status=todo,inprogress,hold&overdue=1')} />
+        <Stat label="Follow-ups due" value={followDue} tone="slate" hot={followDue > 0} icon={<FlagIcon size={18} />} onClick={() => navigate('/team')} />
+        <Stat label="Done this week" value={data.doneThisWeek} tone="green" icon={<span className="text-base">✓</span>} onClick={() => navigate('/tasks?status=done')} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {/* Today's list */}
         <Section
           icon={<SunIcon size={16} />}
+          tone="bg-amber-50 text-amber-600"
           title="Today's list"
           right={
             <span className="text-[13px] text-slate-500">
@@ -113,7 +129,6 @@ export default function Dashboard() {
             </span>
           }
         >
-          {data.daily.focus && <div className="px-2 py-1.5 text-[13px] font-medium text-primary-700">🎯 {data.daily.focus}</div>}
           {todo.length === 0 ? (
             <Empty icon="📝" text="No items for today yet.">
               <Link className="link" to="/today">
@@ -143,6 +158,7 @@ export default function Dashboard() {
         {/* Follow-ups */}
         <Section
           icon={<FlagIcon size={16} />}
+          tone="bg-rose-50 text-rose-600"
           title="Follow-ups due"
           right={
             <Link className="link text-[13px]" to="/team">
@@ -185,7 +201,7 @@ export default function Dashboard() {
         </Section>
 
         {/* Attention: overdue + due soon */}
-        <Section icon={<span className="text-amber-500">⚠</span>} title="Needs attention">
+        <Section icon={<span className="text-base">⚠</span>} tone="bg-orange-50 text-orange-600" title="Needs attention">
           {data.overdueTasks.length === 0 && data.dueSoonTasks.length === 0 && <Empty icon="🧘" text="No overdue or upcoming task deadlines." />}
           <ul className="list">
             {[...data.overdueTasks, ...data.dueSoonTasks].map((t) => (
@@ -235,7 +251,7 @@ export default function Dashboard() {
         </Section>
 
         {/* Upcoming targets */}
-        <Section icon={<TargetIcon size={16} />} title="Team targets this week">
+        <Section icon={<TargetIcon size={16} />} tone="bg-emerald-50 text-emerald-600" title="Team targets this week">
           {data.upcomingTargets.length === 0 && <Empty icon="📅" text="No team targets due in the next 7 days." />}
           <ul className="list">
             {data.upcomingTargets.map((t) => (
@@ -256,6 +272,7 @@ export default function Dashboard() {
         {/* Recent notes */}
         <Section
           icon={<PenIcon size={16} />}
+          tone="bg-violet-50 text-violet-600"
           title="Recent notes"
           right={
             <Link className="link text-[13px]" to="/notes">

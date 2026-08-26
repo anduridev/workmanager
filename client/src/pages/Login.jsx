@@ -26,9 +26,9 @@ export default function Login({ onLogin, hasUser }) {
     <div className="grid min-h-[100dvh] place-items-center bg-slate-50 bg-[radial-gradient(900px_500px_at_10%_-10%,#e0e7ff_0%,transparent_60%),radial-gradient(800px_500px_at_110%_110%,#ede9fe_0%,transparent_60%)] p-4">
       <form className="flex w-full max-w-[380px] flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-pop max-md:p-6" onSubmit={submit}>
         <div className="mb-2 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-600 text-lg font-bold text-white shadow-sm">✓</div>
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-xl font-extrabold text-white shadow-glow">✓</div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">WorkPA</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">WorkPA</h1>
             <p className="text-[13px] text-slate-500">Your personal work assistant</p>
           </div>
         </div>

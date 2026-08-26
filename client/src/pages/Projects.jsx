@@ -4,6 +4,8 @@ import { Projects as ProjectsApi, Integrations } from '../lib/api';
 import { dayjs, fromNow } from '../lib/date';
 import { Empty, AzdoBadge } from '../components/ui';
 import Modal from '../components/Modal';
+import Menu from '../components/Menu';
+import { FolderIcon, PlusIcon } from '../components/icons';
 import { useToast } from '../components/Toast';
 
 const blank = () => ({ name: '', description: '' });
@@ -174,56 +176,59 @@ export default function Projects() {
           const pct = p.counts.total ? Math.round((p.counts.done / p.counts.total) * 100) : 0;
           return (
             <div key={p._id} className="project-card">
-              <div className="ph">
-                <h3 className="clickable" onClick={() => navigate(`/tasks?project=${p._id}`)}>
-                  📁 {p.name}
-                </h3>
-                <span className="row" style={{ whiteSpace: 'nowrap' }}>
-                  <AzdoBadge azdo={p.azdo} kind="PBI" onRetry={() => retryProject(p)} />
-                  <span className="xs muted">{p.counts.total} tasks</span>
+              <div className="flex items-start gap-3.5">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-primary-600">
+                  <FolderIcon size={22} />
                 </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="cursor-pointer truncate text-[17px] font-bold text-slate-900 hover:text-primary-600" onClick={() => navigate(`/tasks?project=${p._id}`)}>
+                    {p.name}
+                  </h3>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-slate-500">
+                    <span>
+                      {p.counts.total} task{p.counts.total === 1 ? '' : 's'} · {open} open
+                    </span>
+                    <AzdoBadge azdo={p.azdo} kind="PBI" onRetry={() => retryProject(p)} />
+                  </div>
+                </div>
+                <Menu
+                  items={[
+                    { label: 'Edit project', onClick: () => setForm({ _id: p._id, name: p.name, description: p.description }) },
+                    { label: 'Delete project', danger: true, onClick: () => remove(p) },
+                    ...(p.counts.total > 0 ? [{ label: 'Delete with all tasks', danger: true, onClick: () => removeWithTasks(p) }] : []),
+                  ]}
+                />
               </div>
-              {p.description ? <p className="desc pre">{p.description}</p> : <p className="desc muted">No description</p>}
-              <div className="row between mt">
-                <div className="row wrap xs">
-                  <span className="badge badge-todo">{p.counts.todo} to do</span>
-                  <span className="badge badge-inprogress">{p.counts.inprogress} in progress</span>
-                  <span className="badge badge-hold">{p.counts.hold} on hold</span>
-                  <span className="badge badge-done">{p.counts.done} done</span>
+              <p className={`mt-3 line-clamp-2 text-[14px] leading-relaxed ${p.description ? 'text-slate-600' : 'italic text-slate-400'}`}>{p.description || 'No description'}</p>
+              <div className="mt-4">
+                <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-500">
+                  <span>{pct}% complete</span>
+                  <span>
+                    {p.counts.done}/{p.counts.total} done
+                  </span>
+                </div>
+                <div className="progress">
+                  <div className={pct === 100 ? 'bg-emerald-500' : '!bg-brand'} style={{ width: `${pct}%` }} />
                 </div>
               </div>
-              <div className="row mt" style={{ gap: 10 }}>
-                <div className="progress grow">
-                  <div style={{ width: `${pct}%` }} />
-                </div>
-                <span className="xs muted" style={{ whiteSpace: 'nowrap' }}>
-                  {pct}% · {open} open
-                </span>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {p.counts.todo > 0 && <span className="badge badge-todo">{p.counts.todo} to do</span>}
+                {p.counts.inprogress > 0 && <span className="badge badge-inprogress">{p.counts.inprogress} in progress</span>}
+                {p.counts.hold > 0 && <span className="badge badge-hold">{p.counts.hold} on hold</span>}
+                {p.counts.done > 0 && <span className="badge badge-done">{p.counts.done} done</span>}
+                {p.counts.total === 0 && <span className="text-xs text-slate-400">No tasks yet</span>}
               </div>
-              <div className="row between mt wrap">
-                <div className="row acts">
-                  <button className="btn btn-xs btn-ghost" onClick={() => setForm({ _id: p._id, name: p.name, description: p.description })}>
-                    Edit
+              <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-4 max-md:justify-end">
+                <span className="text-xs text-slate-400 max-md:hidden">Created {dayjs(p.createdAt).format('DD MMM YYYY')}</span>
+                <div className="flex gap-2">
+                  <button className="btn btn-sm" onClick={() => navigate(`/tasks?project=${p._id}`)}>
+                    Open board
                   </button>
-                  <button className="btn btn-xs btn-ghost btn-danger" onClick={() => remove(p)}>
-                    Delete
-                  </button>
-                  {p.counts.total > 0 && (
-                    <button className="btn btn-xs btn-ghost btn-danger" title="Delete project and all its tasks" onClick={() => removeWithTasks(p)}>
-                      Delete with tasks
-                    </button>
-                  )}
-                </div>
-                <div className="row">
-                  <button className="btn btn-xs" onClick={() => navigate(`/tasks?project=${p._id}`)}>
-                    View tasks
-                  </button>
-                  <button className="btn btn-xs btn-primary" onClick={() => navigate(`/tasks?project=${p._id}&new=1`)}>
-                    + Task
+                  <button className="btn btn-sm btn-primary" onClick={() => navigate(`/tasks?project=${p._id}&new=1`)}>
+                    <PlusIcon size={14} /> Task
                   </button>
                 </div>
               </div>
-              <div className="xs muted mt" style={{ marginTop: 8 }}>Created {dayjs(p.createdAt).format('DD MMM YYYY')}</div>
             </div>
           );
         })}

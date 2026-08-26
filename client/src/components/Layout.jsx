@@ -93,13 +93,13 @@ export default function Layout({ children, user, onLogout }) {
   const footBtn = 'flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900';
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 bg-page bg-fixed bg-no-repeat">
       {/* ---------- Desktop sidebar ---------- */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col border-r border-slate-200/70 bg-white/70 px-4 py-6 backdrop-blur md:flex">
         <div className="mb-6 flex items-center gap-3 px-2">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-600 text-base font-bold text-white shadow-sm">✓</div>
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-lg font-extrabold text-white shadow-glow">✓</div>
           <div className="leading-tight">
-            <div className="text-[15px] font-semibold text-slate-900">WorkPA</div>
+            <div className="text-lg font-extrabold tracking-tight text-slate-900">WorkPA</div>
             <div className="text-xs text-slate-500">Your personal assistant</div>
           </div>
         </div>
@@ -110,14 +110,14 @@ export default function Layout({ children, user, onLogout }) {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                `group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
-                  isActive ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                `group flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-semibold transition ${
+                  isActive ? 'bg-brand text-white shadow-glow' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-card'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <n.Icon size={18} className={isActive ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'} />
+                  <n.Icon size={19} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary-600'} />
                   <span>{n.label}</span>
                   {n.to === '/reminders' && <Badge n={notif.unreadCount} className="ml-auto" />}
                 </>
@@ -127,7 +127,7 @@ export default function Layout({ children, user, onLogout }) {
         </nav>
         <div className="mt-auto flex flex-col gap-0.5 border-t border-slate-200 pt-4">
           <div className="mb-2 flex items-center gap-3 px-2">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-600 text-sm font-semibold text-white">{name.slice(0, 1).toUpperCase()}</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-brand text-sm font-bold text-white">{name.slice(0, 1).toUpperCase()}</span>
             <span className="min-w-0 leading-tight">
               <div className="truncate text-sm font-semibold text-slate-900">{name}</div>
               <div className="text-xs text-slate-500">Signed in</div>
@@ -149,11 +149,11 @@ export default function Layout({ children, user, onLogout }) {
 
       {/* ---------- Main column ---------- */}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex min-h-[56px] items-center justify-between gap-3 border-b border-slate-200 bg-white/85 px-4 backdrop-blur max-md:pt-[env(safe-area-inset-top)] md:h-16 md:px-6">
+        <header className="sticky top-0 z-20 flex min-h-[56px] items-center justify-between gap-3 border-b border-slate-200/70 bg-white/70 px-4 backdrop-blur max-md:pt-[env(safe-area-inset-top)] md:h-16 md:px-6">
           <div className="flex items-center gap-2.5 md:hidden">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-white">✓</div>
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-base font-extrabold text-white shadow-glow">✓</div>
             <div className="leading-tight">
-              <div className="text-[15px] font-semibold text-slate-900">WorkPA</div>
+              <div className="text-base font-extrabold tracking-tight text-slate-900">WorkPA</div>
               <div className="text-xs text-slate-500">{dayjs().format('dddd, DD MMM')}</div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function Layout({ children, user, onLogout }) {
         </button>
       </nav>
       <button
-        className="fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/40 transition active:scale-95 md:hidden"
+        className="fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-glow transition active:scale-95 md:hidden"
         style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
         onClick={() => setSheet('add')}
         aria-label="Add"

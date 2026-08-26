@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
       },
       colors: {
         primary: {
@@ -21,8 +21,15 @@ export default {
         },
       },
       boxShadow: {
-        card: '0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)',
+        card: '0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px -14px rgba(16, 24, 40, 0.14)',
+        lift: '0 4px 12px rgba(16, 24, 40, 0.06), 0 18px 40px -16px rgba(16, 24, 40, 0.18)',
+        glow: '0 8px 24px -8px rgba(79, 70, 229, 0.55)',
         pop: '0 20px 48px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08)',
+      },
+      backgroundImage: {
+        brand: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+        'brand-soft': 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
+        page: 'radial-gradient(1200px 500px at 15% -10%, #e9edff 0%, transparent 60%), radial-gradient(900px 400px at 110% 0%, #f3e8ff 0%, transparent 55%)',
       },
       keyframes: {
         fade: { from: { opacity: 0 }, to: { opacity: 1 } },
