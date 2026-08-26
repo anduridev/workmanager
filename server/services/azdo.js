@@ -215,8 +215,18 @@ async function iterationFor(date) {
   return c.iterationPath || null;
 }
 
-/** Connection check + validation of the state mapping + sprint overview (for the status card). */
-async function testConnection() {
+/** Connection check + validation of the state mapping + sprint overview (for the status card). Cached 5 min. */
+let statusCache = { key: '', at: 0, value: null };
+async function testConnection({ fresh = false } = {}) {
+  const c = config();
+  const key = `${c.orgUrl}|${c.project}|${c.taskType}|${c.pbiType}|${c.pbiState}`;
+  if (!fresh && statusCache.key === key && statusCache.value?.ok && Date.now() - statusCache.at < 5 * 60 * 1000) return statusCache.value;
+  const value = await testConnectionUncached();
+  statusCache = { key, at: Date.now(), value };
+  return value;
+}
+
+async function testConnectionUncached() {
   const c = config();
   if (!enabled()) return { ok: false, error: 'Not configured (AZDO_ORG_URL, AZDO_PROJECT, AZDO_PAT)' };
   try {

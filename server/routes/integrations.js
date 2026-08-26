@@ -8,7 +8,7 @@ router.get(
   wrap(async (req, res) => {
     const c = azdo.config();
     const enabled = azdo.enabled();
-    const [connection, pending] = await Promise.all([enabled ? azdo.testConnection() : null, azdo.pendingCounts()]);
+    const [connection, pending] = await Promise.all([enabled ? azdo.testConnection({ fresh: req.query.fresh === '1' }) : null, azdo.pendingCounts()]);
     res.json({
       enabled,
       orgUrl: c.orgUrl,

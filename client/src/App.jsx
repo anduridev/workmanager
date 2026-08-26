@@ -17,21 +17,14 @@ export default function App() {
 
   useEffect(() => {
     const boot = async () => {
-      let hasUser = true;
-      try {
-        ({ hasUser } = await Auth.status());
-      } catch {
-        /* ignore */
+      // Run both requests in parallel — one round trip instead of two before the first render
+      const [statusRes, meRes] = await Promise.allSettled([Auth.status(), getToken() ? Auth.me() : Promise.reject(new Error('no token'))]);
+      const hasUser = statusRes.status === 'fulfilled' ? statusRes.value.hasUser : true;
+      if (meRes.status === 'fulfilled') {
+        setAuth({ loading: false, loggedIn: true, hasUser, user: meRes.value });
+        return;
       }
-      if (getToken()) {
-        try {
-          const user = await Auth.me();
-          setAuth({ loading: false, loggedIn: true, hasUser, user });
-          return;
-        } catch {
-          setToken(null);
-        }
-      }
+      if (getToken()) setToken(null);
       setAuth({ loading: false, loggedIn: false, hasUser, user: null });
     };
     boot();

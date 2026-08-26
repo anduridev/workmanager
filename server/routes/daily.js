@@ -58,10 +58,11 @@ router.get(
   '/',
   wrap(async (req, res) => {
     const date = req.query.date || today();
-    const doc = sortItems(await getOrCreate(date));
-    const previous = await DailyTodo.find({ date: { $lt: date }, 'items.done': false })
-      .sort({ date: -1 })
-      .limit(14);
+    const [docRaw, previous] = await Promise.all([
+      getOrCreate(date),
+      DailyTodo.find({ date: { $lt: date }, 'items.done': false }).sort({ date: -1 }).limit(14),
+    ]);
+    const doc = sortItems(docRaw);
     const pendingFromPrevious = previous.flatMap((d) =>
       d.items.filter((i) => !i.done).map((i) => ({ _id: i._id, text: i.text, date: d.date, scheduledAt: i.scheduledAt }))
     );
