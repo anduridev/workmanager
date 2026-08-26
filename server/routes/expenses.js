@@ -118,7 +118,7 @@ router.post(
 router.post(
   '/sync',
   wrap(async (req, res) => {
-    const r = await expenses.syncMail({ days: req.body?.days, full: req.body?.full === true });
+    const r = await expenses.syncMail({ days: req.body?.days, full: req.body?.full === true, reimport: req.body?.reimport === true });
     res.json(r);
   })
 );
@@ -127,7 +127,7 @@ router.post(
 router.post(
   '/scan-preview',
   wrap(async (req, res) => {
-    res.json(await expenses.scanPreview({ days: Number(req.body?.days) || 30 }));
+    res.json(await expenses.scanPreview({ days: Number(req.body?.days) || 30, limit: Number(req.body?.limit) || 60, textChars: Number(req.body?.textChars) || 160 }));
   })
 );
 

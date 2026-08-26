@@ -12,17 +12,20 @@ const CATEGORIES = Expense.CATEGORIES;
 const AMOUNT_RX = /(?:rs\.?|inr|₹|rupees|usd|\$|eur|€|gbp|£)\s*:?\s*(\d[\d,]*(?:\.\d{1,2})?)|(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rs\.?|inr|rupees)\b/i;
 const DEBIT_RX = /debited|spent|paid|payment of|purchase|charged|withdrawn|withdrawal|sent|transferred to|transaction of|was made on your card|has been made|used for|using your|bill payment|autopay|auto-debit|emi/i;
 const CREDIT_RX = /credited|received|refund|reversed|reversal|deposited|cashback|salary|interest credited|has been added/i;
-const NOT_TXN_RX = /otp|one[- ]time password|verification code|will be debited|is due|due on|reminder|statement is ready|e-statement|minimum amount due|payment due|failed|declined|unsuccessful|could not be processed|request received|offer|apply now|pre-approved/i;
+const NOT_TXN_RX = /otp|one[- ]time password|verification code|will be debited|is due|due on|reminder|statement|minimum amount due|payment due|failed|declined|unsuccessful|could not be processed|request received|offer|apply now|pre-approved|account will be closed|summary for|your bill for/i;
 const ACCOUNT_RX = /(?:a\/c|acct|account|card|sb\s*a\/c|savings account|credit card|debit card|bank|wallet)\s*(?:no\.?|number|ending(?: with| in)?|xx+|\*+|•+)?\s*[:#-]?\s*[xX*•]{0,12}(\d{3,6})\b/i;
 const CARD_RX = /card\s*(?:ending(?: with| in)?|no\.?|number)?\s*[:#-]?\s*[xX*•]{0,12}(\d{4})\b/i;
 // Where the counter-party usually sits in alert mails, in order of reliability. Stop words end the capture.
 const STOP = String.raw`(?=\s+(?:on|dated|for|using|via|was|is|has|from|ref|reference|successful|towards|salary|at|by|through|with|thank|avl|available|balance|net|the|your|txn|transaction|upi|dear|if|call|\(|\d{1,2}[-/][A-Za-z0-9]{2,3}[-/]\d{2,4})\b|\s*[.,;)\n]|\s*$)`;
 const NAME = String.raw`[A-Za-z][A-Za-z0-9&.'’ \-]{2,45}?`;
 const MERCHANT_RX = [
-  new RegExp(String.raw`(?:info|remarks?|narration|description|merchant|payee)\s*[:\-]\s*([^\n.,;]{3,60})`, 'i'),
+  // HDFC UPI: "towards VPA q123@ybl (Shop Name 2) on 25-08-26" / credits: "Sender: NAME (VPA: x@axl)"
+  new RegExp(String.raw`(?:to|towards)\s+vpa\s+[^\s(]+\s*\(([^)\n]{2,60})\)`, 'i'),
+  new RegExp(String.raw`(?:sender|payer|received from|from vpa)\s*[:\-]?\s*([^\n(,;]{3,60}?)\s*(?:\(|$|\n)`, 'i'),
+  new RegExp(String.raw`(?:info|remarks?|narration|description|merchant|payee|beneficiary)\s*[:\-]\s*([^\n.,;]{3,60})`, 'i'),
   new RegExp(String.raw`\bat\s+(${NAME})${STOP}`, 'i'),
-  new RegExp(String.raw`\bto\s+(?:vpa\s+)?[a-z0-9._-]+@[a-z0-9.]+\s+(${NAME})${STOP}`, 'i'),
-  new RegExp(String.raw`\bto\s+(?:vpa\s+)?([a-z0-9._-]{3,}@[a-z0-9.]+)`, 'i'),
+  new RegExp(String.raw`\b(?:to|towards)\s+(?:vpa\s+)?[a-z0-9._-]+@[a-z0-9.]+\s+(${NAME})${STOP}`, 'i'),
+  new RegExp(String.raw`\b(?:to|towards)\s+(?:vpa\s+)?([a-z0-9._-]{3,}@[a-z0-9.]+)`, 'i'),
   new RegExp(String.raw`\b(?:paid to|sent to|transfer to|trf to|payment to|towards|to)\s+(?!vpa\b|your\b|a\b|the\b|account\b|a\/c)(${NAME})${STOP}`, 'i'),
   new RegExp(String.raw`\bfrom\s+(?!your\b|a\b|the\b|account\b|a\/c|hdfc|icici|sbi|axis|kotak|bank)(${NAME})${STOP}`, 'i'),
   new RegExp(String.raw`\bby\s+(?!neft\b|imps\b|rtgs\b|upi\b|rs\b|inr\b|₹|\d)(${NAME})${STOP}`, 'i'),
@@ -32,24 +35,24 @@ const BAD_MERCHANT = /^(?:your|you|a|an|the|account|card|transaction|vpa|custome
 const CATEGORY_RULES = [
   ['Salary & Income', /salary|payroll|stipend|wages|incentive|bonus credited/i],
   ['Refunds', /refund|reversal|reversed|cashback/i],
-  ['Food & Dining', /swiggy|zomato|domino|pizza|kfc|mcdonald|burger|starbucks|cafe|coffee|restaurant|bistro|kitchen|biryani|dhaba|eat|food|dining|bakery|chai|tea|dunkin|subway|wow momo|haldiram|barbeque|bbq/i],
+  ['Food & Dining', /swiggy|zomato|domino|pizza|\bkfc\b|mcdonald|burger|starbucks|\bcafe\b|\bcoffee\b|restaurant|bistro|\bkitchen\b|biryani|dhaba|\beatery\b|\beats\b|\bfoods?\b|\bdining\b|bakery|\bchai\b|\btea\b|dunkin|subway|wow momo|haldiram|barbeque|\bbbq\b|\bbar\b|\bpub\b|\bcanteen\b|\bmess\b|\bhotel\b.*(?:bar|restaurant)/i],
   ['Groceries', /bigbasket|blinkit|zepto|instamart|dmart|d-mart|grocer|jiomart|reliance fresh|reliance smart|more supermarket|supermarket|kirana|dairy|vegetable|nature'?s basket|spencer|star bazaar|ratnadeep|vijetha|lulu/i],
-  ['Fuel', /petrol|fuel|hpcl|hp petro|bpcl|bharat petro|iocl|indian ?oil|shell|nayara|reliance petro|jio-bp|cng|diesel/i],
-  ['Transport', /uber|ola\b|rapido|metro|bmtc|tsrtc|apsrtc|msrtc|ksrtc|fastag|parking|toll|auto rickshaw|cab|taxi|namma|yulu|bounce|redbus|abhibus|bus ticket|irctc|rail|train/i],
-  ['Travel', /indigo|air india|vistara|akasa|spicejet|airasia|flight|makemytrip|goibibo|cleartrip|yatra|easemytrip|ixigo|oyo|treebo|fabhotel|marriott|taj|itc hotel|hotel|resort|airbnb|booking\.com|agoda|trip|holiday|visa/i],
+  ['Fuel', /petrol|\bfuel\b|hpcl|hp petro|bpcl|bharat petro|iocl|indian ?oil|\bshell\b|nayara|reliance petro|jio-bp|\bcng\b|diesel|filling station|service station/i],
+  ['Transport', /\buber\b|\bola\b|rapido|\bmetro\b|bmtc|tsrtc|apsrtc|msrtc|ksrtc|fastag|\bparking\b|\btoll (?:plaza|gate|charges?|tax)\b|auto rickshaw|\bcabs?\b|\btaxi\b|namma|yulu|redbus|abhibus|bus ticket|irctc|\brailways?\b|\btrain ticket\b|\bmetro station\b/i],
+  ['Travel', /\bindigo\b|air india|vistara|akasa|spicejet|airasia|\bflights?\b|makemytrip|goibibo|cleartrip|\byatra\b|easemytrip|ixigo|\boyo\b|treebo|fabhotel|marriott|\btaj\b|itc hotel|\bhotels?\b|\bresorts?\b|airbnb|booking\.com|agoda|\btrip\b|\bholiday\b|\bvisa fee\b/i],
   ['Subscriptions', /netflix|spotify|prime video|primevideo|hotstar|disney|youtube|google (?:one|play|storage)|apple\.com|icloud|itunes|adobe|microsoft|office 365|chatgpt|openai|claude|anthropic|github|notion|canva|dropbox|zee5|sonyliv|jiocinema|audible|kindle|linkedin premium|membership|subscription|renewal/i],
-  ['Bills & Utilities', /airtel|jio\b|vodafone|vi\b|bsnl|act fibernet|hathway|tata play|tataplay|dth|d2h|sun direct|electricity|bescom|tneb|apspdcl|tsspdcl|msedcl|bses|tata power|adani electricity|water bill|gas bill|indane|hp gas|bharat gas|piped gas|mahanagar gas|igl|broadband|postpaid|prepaid recharge|recharge|bill pay|billdesk|utility/i],
-  ['Rent & EMI', /\bemi\b|loan|home loan|car loan|personal loan|bajaj fin|hdfc ltd|lic housing|rent\b|house rent|society|maintenance|nobroker rent|housing\.com/i],
-  ['Health', /apollo|pharmacy|medplus|1mg|tata 1mg|pharmeasy|netmeds|hospital|clinic|diagnostic|lab\b|practo|doctor|dental|optical|lenskart|medical|medicine|health|cult\.fit|cultfit|gym|fitness/i],
-  ['Education', /school|college|university|udemy|coursera|byju|unacademy|vedantu|tuition|fees|course|exam|training|certification/i],
-  ['Entertainment', /bookmyshow|pvr|inox|cinema|movie|theatre|game|steam|playstation|xbox|nintendo|concert|event|club|bowling|arcade|wonderla|imagica/i],
-  ['Personal Care', /salon|spa|parlour|barber|haircut|nykaa|purplle|beauty|cosmetic|grooming|laundry|dry clean|urban company|urbanclap/i],
-  ['Gifts & Donations', /gift|donation|charity|temple|trust|ngo|giveindia|milaap|ketto|cry\b|isha|iskcon/i],
+  ['Bills & Utilities', /airtel|\bjio\b|vodafone|\bvi\b|bsnl|act fibernet|hathway|tata play|tataplay|\bdth\b|d2h|sun direct|electricity|bescom|tneb|apspdcl|tsspdcl|msedcl|\bbses\b|tata power|adani electricity|water bill|gas bill|indane|hp gas|bharat gas|piped gas|mahanagar gas|\bigl\b|broadband|postpaid|prepaid recharge|recharge|bill pay|billdesk|\butility\b/i],
+  ['Rent & EMI', /\bemi\b|\bloan\b|bajaj fin|hdfc ltd|lic housing|\brent\b|house rent|\bsociety\b|\bmaintenance\b|nobroker|housing\.com|\blandlord\b/i],
+  ['Health', /apollo|pharmacy|medplus|\b1mg\b|pharmeasy|netmeds|hospital|clinic|diagnostic|\blabs?\b|practo|doctor|dental|optical|lenskart|medical|medicine|\bhealth\b|cult\.fit|cultfit|\bgym\b|fitness/i],
+  ['Education', /\bschool\b|college|university|udemy|coursera|byju|unacademy|vedantu|tuition|school fees?|\bcourses?\b|\bexam\b|\btraining\b|certification|\bacademy\b|\binstitute\b/i],
+  ['Entertainment', /bookmyshow|\bpvr\b|\binox\b|cinema|movie|theatre|\bgames?\b|\bsteam\b|playstation|xbox|nintendo|concert|\bclub\b|bowling|arcade|wonderla|imagica|\bzoo\b|\bpark\b/i],
+  ['Personal Care', /salon|\bspa\b|parlour|barber|haircut|nykaa|purplle|beauty|cosmetic|grooming|laundry|dry clean|urban company|urbanclap/i],
+  ['Gifts & Donations', /\bgifts?\b|donation|charity|temple|\btrust\b|\bngo\b|giveindia|milaap|ketto|iskcon|\bmandir\b|\bchurch\b|\bmasjid\b/i],
   ['Investments & Insurance', /zerodha|groww|upstox|kuvera|coin\b|mutual fund|\bsip\b|nps|ppf|lic\b|life insurance|policy|premium|insurance|icici pru|hdfc life|sbi life|max life|bajaj allianz|star health|niva|acko|digit|smallcase|paytm money|etmoney|indmoney|gold|sgb|fixed deposit|recurring deposit/i],
-  ['Cash', /atm|cash withdrawal|cash wdl|wdl|cardless cash/i],
-  ['Fees & Charges', /charges?|fee\b|penalty|late payment|annual fee|gst\b|convenience|surcharge|interest charged|amb charge/i],
+  ['Cash', /\batm\b|cash withdrawal|cash wdl|\bwdl\b|cardless cash/i],
+  ['Fees & Charges', /\bcharges?\b|\bfees?\b|penalty|late payment|annual fee|\bgst\b|convenience fee|surcharge|interest charged|amb charge/i],
   ['Shopping', /amazon|flipkart|myntra|ajio|meesho|tata cliq|croma|reliance digital|vijay sales|ikea|decathlon|zara|h&m|uniqlo|lifestyle|pantaloons|max fashion|westside|shoppers stop|mall|store|mart|retail|shop|boutique|electronics|mobile|apple store|samsung|oneplus|snapdeal|firstcry|hamleys|pepperfry|urban ladder|wakefit/i],
-  ['Transfers', /neft|imps|rtgs|transfer|self|own account|to a\/c|fund trf|upi\/p2[pa]|\bp2[pa]\b|family|wallet load|added to wallet|paytm wallet|phonepe wallet/i],
+  ['Transfers', /\bneft\b|\bimps\b|\brtgs\b|transfer|\bself\b|own account|to a\/c|fund trf|upi\/p2[pa]|\bp2[pa]\b|wallet load|added to wallet|paytm wallet|phonepe wallet/i],
 ];
 
 const METHOD_RULES = [
@@ -153,6 +156,7 @@ function guessMerchant(text) {
     if (/@/.test(v)) v = v.split('@')[0].replace(/[._-]+/g, ' '); // VPA handle -> name part
     v = v
       .replace(/\b(?:ref(?:erence)?|txn|transaction|upi|no\.?|number|id|successful|hi|dear customer)\b.*$/i, '')
+      .replace(/\s+\d{1,3}$/, '') // "Shop Name 2" -> "Shop Name"
       .replace(/[.:,;\-\s]+$/, '')
       .trim();
     if (/^\d[\d\s]*$/.test(v) || v.length < 3 || BAD_MERCHANT.test(v)) continue;
@@ -162,6 +166,14 @@ function guessMerchant(text) {
 }
 
 const STRONG = (s) => /has been debited|debited from|debited with|credited with|credited to|spent on|was made on your card|paid to|payment of .* (?:was|has been) (?:made|successful)/i.test(s);
+
+/** The sentence(s) around the first amount — where the actual transaction is described. */
+function txnLine(text) {
+  const m = text.match(AMOUNT_RX);
+  if (!m) return text.slice(0, 300);
+  const i = m.index;
+  return text.slice(Math.max(0, i - 120), Math.min(text.length, i + 260));
+}
 
 /** Rule-based parse of one e-mail -> transaction or null (when it doesn't look like a completed transaction). */
 function parseRules(mail) {
@@ -188,7 +200,7 @@ function parseRules(mail) {
     type,
     merchant,
     description: clean(mail.subject).slice(0, 140),
-    category: guessCategory(`${merchant} ${head}`, type),
+    category: guessCategory(`${merchant} ${mail.subject || ''} ${txnLine(head)}`, type),
     account: guessAccount(head, fromStr),
     method: guessMethod(head),
     confidence: 0.6,

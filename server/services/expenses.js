@@ -129,12 +129,18 @@ async function testMail(form = {}) {
 
 // ---------- e-mail sync ----------
 let syncing = false;
-async function syncMail({ days, full = false, limit = 200 } = {}) {
+async function syncMail({ days, full = false, reimport = false, limit = 200 } = {}) {
   if (syncing) throw Object.assign(new Error('A mailbox sync is already running'), { status: 409 });
   syncing = true;
   const startedAt = new Date();
   const cfg = await mailSettings();
   try {
+    if (reimport) {
+      // Re-parse everything: drop mail-sourced rows (manual entries are kept) and scan from scratch
+      const r = await Expense.deleteMany({ source: 'email' });
+      console.log(`[expenses] re-import: removed ${r.deletedCount} mail-sourced transaction(s)`);
+      full = true;
+    }
     const provider = await activeProvider(cfg);
     if (!provider) throw new Error('Mailbox is not set up yet — open Expenses → Settings and connect Gmail');
     const sinceDays = Number(days) || cfg.lookbackDays || 30;
@@ -211,7 +217,7 @@ async function syncMail({ days, full = false, limit = 200 } = {}) {
 }
 
 /** Diagnostic: what the mailbox scan sees (last `days`), with the rule parser's verdict per mail. Nothing is stored. */
-async function scanPreview({ days = 30, limit = 60 } = {}) {
+async function scanPreview({ days = 30, limit = 60, textChars = 160 } = {}) {
   const cfg = await mailSettings();
   const provider = await activeProvider(cfg);
   if (!provider) throw new Error('Mailbox is not set up yet');
@@ -227,7 +233,7 @@ async function scanPreview({ days = 30, limit = 60 } = {}) {
         bankLike: m.bankLike !== false,
         imported: known.has(m.messageId),
         txn: txn ? { type: txn.type, amount: txn.amount, merchant: txn.merchant, category: txn.category } : null,
-        snippet: String(m.text || '').slice(0, 160),
+        snippet: String(m.text || '').slice(0, Math.min(3000, Math.max(80, Number(textChars) || 160))),
       };
     })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
