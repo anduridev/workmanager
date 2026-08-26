@@ -99,7 +99,7 @@ export default function Layout({ children, user, onLogout }) {
         <div className="mb-6 flex items-center gap-3 px-2">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-lg font-extrabold text-white shadow-glow">✓</div>
           <div className="leading-tight">
-            <div className="text-lg font-extrabold tracking-tight text-slate-900">WorkPA</div>
+            <div className="text-base font-bold tracking-tight text-slate-900">WorkPA</div>
             <div className="text-xs text-slate-500">Your personal assistant</div>
           </div>
         </div>
@@ -110,14 +110,14 @@ export default function Layout({ children, user, onLogout }) {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                `group flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-semibold transition ${
+                `group flex h-10 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition ${
                   isActive ? 'bg-brand text-white shadow-glow' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-card'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <n.Icon size={19} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary-600'} />
+                  <n.Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary-600'} />
                   <span>{n.label}</span>
                   {n.to === '/reminders' && <Badge n={notif.unreadCount} className="ml-auto" />}
                 </>
@@ -153,7 +153,7 @@ export default function Layout({ children, user, onLogout }) {
           <div className="flex items-center gap-2.5 md:hidden">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-base font-extrabold text-white shadow-glow">✓</div>
             <div className="leading-tight">
-              <div className="text-base font-extrabold tracking-tight text-slate-900">WorkPA</div>
+              <div className="text-[15px] font-bold tracking-tight text-slate-900">WorkPA</div>
               <div className="text-xs text-slate-500">{dayjs().format('dddd, DD MMM')}</div>
             </div>
           </div>

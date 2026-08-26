@@ -26,8 +26,8 @@ function Stat({ label, value, tone = 'slate', onClick, hot, icon }) {
   return (
     <button onClick={onClick} className="card flex items-start justify-between gap-2 p-5 text-left transition hover:-translate-y-px hover:shadow-lift max-md:p-4">
       <span>
-        <span className={`block text-3xl font-extrabold tabular-nums leading-none tracking-tight max-md:text-2xl ${t.num}`}>{value}</span>
-        <span className="mt-2 block text-[13px] font-semibold text-slate-500">{label}</span>
+        <span className={`block text-2xl font-bold tabular-nums leading-none tracking-tight ${t.num}`}>{value}</span>
+        <span className="mt-1.5 block text-xs font-medium text-slate-500">{label}</span>
       </span>
       <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${t.tile}`}>{icon}</span>
     </button>
@@ -80,14 +80,14 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="relative mb-5 overflow-hidden rounded-3xl bg-brand p-7 text-white shadow-glow max-md:rounded-2xl max-md:p-5">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand p-6 text-white shadow-glow max-md:p-5">
         <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-28 right-32 h-64 w-64 rounded-full bg-white/10" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-white/70">{dayjs().format('dddd, DD MMMM')}</div>
-            <h1 className="mt-1.5 text-[32px] font-extrabold leading-tight tracking-tight max-md:text-[26px]">{greeting()} 👋</h1>
-            <p className="mt-2 max-w-xl text-[15px] text-white/85">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">{dayjs().format('dddd, DD MMMM')}</div>
+            <h1 className="mt-1 text-2xl font-bold leading-tight tracking-tight">{greeting()} 👋</h1>
+            <p className="mt-1.5 max-w-xl text-sm text-white/85">
               {followDue > 0 || overdue > 0
                 ? `You have ${followDue ? `${followDue} follow-up${followDue > 1 ? 's' : ''}` : ''}${followDue && overdue ? ' and ' : ''}${
                     overdue ? `${overdue} overdue task${overdue > 1 ? 's' : ''}` : ''
@@ -98,7 +98,7 @@ export default function Dashboard() {
           {data.daily.focus ? (
             <div className="rounded-2xl bg-white/15 px-4 py-3 backdrop-blur max-md:w-full">
               <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/70">Today's focus</div>
-              <div className="mt-0.5 text-[15px] font-semibold">🎯 {data.daily.focus}</div>
+              <div className="mt-0.5 text-sm font-semibold">🎯 {data.daily.focus}</div>
             </div>
           ) : (
             <Link to="/today" className="rounded-xl bg-white/15 px-4 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/25">
@@ -201,24 +201,38 @@ export default function Dashboard() {
         </Section>
 
         {/* Attention: overdue + due soon */}
-        <Section icon={<span className="text-base">⚠</span>} tone="bg-orange-50 text-orange-600" title="Needs attention">
+        <Section
+          icon={<span className="text-base">⚠</span>}
+          tone="bg-orange-50 text-orange-600"
+          title="Needs attention"
+          right={overdue > 0 ? <span className="badge badge-overdue">{overdue} overdue</span> : <span className="text-xs text-slate-500">next 3 days</span>}
+        >
           {data.overdueTasks.length === 0 && data.dueSoonTasks.length === 0 && <Empty icon="🧘" text="No overdue or upcoming task deadlines." />}
           <ul className="list">
-            {[...data.overdueTasks, ...data.dueSoonTasks].map((t) => (
-              <li key={t._id} className="lrow">
-                <div className="grow clickable" onClick={() => navigate(`/tasks/${t._id}`)}>
-                  <div className="title">{t.title}</div>
-                  <div className="meta">
-                    <span className={`badge ${isPast(dayjs(t.dueDate).endOf('day')) ? 'badge-overdue' : 'badge-soon'}`}>{dueLabel(t.dueDate)}</span>
-                    <StatusBadge status={t.status} />
-                    <PriorityBadge priority={t.priority} />
+            {[...data.overdueTasks, ...data.dueSoonTasks].map((t) => {
+              const late = isPast(dayjs(t.dueDate).endOf('day'));
+              return (
+                <li key={t._id} className="lrow group">
+                  <button
+                    className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-slate-300 text-[11px] font-bold text-transparent transition hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 max-md:h-6 max-md:w-6"
+                    onClick={() => finishTask(t)}
+                    title="Mark done"
+                    aria-label="Mark done"
+                  >
+                    ✓
+                  </button>
+                  <div className="grow clickable" onClick={() => navigate(`/tasks/${t._id}`)}>
+                    <div className="title truncate">{t.title}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                      <span className={`font-semibold ${late ? 'text-red-600' : 'text-amber-600'}`}>{dueLabel(t.dueDate)}</span>
+                      {t.project?.name && <span className="truncate">· {t.project.name}</span>}
+                      {(t.priority === 'high' || t.priority === 'urgent') && <span className="text-slate-400">· {t.priority}</span>}
+                    </div>
                   </div>
-                </div>
-                <button className="btn btn-xs" onClick={() => finishTask(t)} title="Mark done">
-                  ✓
-                </button>
-              </li>
-            ))}
+                  <StatusBadge status={t.status} />
+                </li>
+              );
+            })}
           </ul>
         </Section>
 

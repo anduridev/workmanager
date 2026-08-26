@@ -10,7 +10,7 @@
    --------------------------------------------------------------------------- */
 @layer base {
   html { color-scheme: light only; -webkit-text-size-adjust: 100%; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-  body { @apply bg-slate-50 text-slate-900 antialiased text-[15px] leading-normal font-sans; }
+  body { @apply bg-slate-50 text-slate-900 antialiased text-sm leading-normal font-sans max-md:text-[15px]; }
   h1, h2, h3 { @apply tracking-tight; }
   *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
@@ -21,7 +21,7 @@
 
 @layer components {
   /* Buttons */
-  .btn { @apply inline-flex h-9 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:pointer-events-none disabled:opacity-50 max-md:h-11 max-md:px-4 max-md:text-[15px]; }
+  .btn { @apply inline-flex h-9 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:pointer-events-none disabled:opacity-50 max-md:h-11 max-md:px-4 max-md:text-[15px]; }
   .btn-primary { @apply border-transparent bg-brand text-white shadow-glow hover:brightness-110 hover:text-white; }
   .btn-danger { @apply text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700; }
   .btn-ghost { @apply border-transparent bg-transparent text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-900; }
@@ -44,7 +44,7 @@
   /* Surfaces */
   .card { @apply rounded-2xl border border-slate-200/70 bg-white shadow-card; }
   .card-head { @apply flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 max-md:px-4; }
-  .card-head h2, .card-head h3 { @apply flex items-center gap-2.5 text-base font-bold text-slate-900; }
+  .card-head h2, .card-head h3 { @apply flex items-center gap-2.5 text-[15px] font-semibold text-slate-900; }
   .card-body { @apply p-5 max-md:p-4; }
   .card-body.tight { @apply px-3 py-2; }
   .section-title { @apply mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400; }
@@ -53,7 +53,7 @@
   .divider { @apply my-3 h-px bg-slate-200; }
 
   /* Badges */
-  .badge { @apply inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-bold leading-none; }
+  .badge { @apply inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] font-semibold leading-none; }
   .badge-todo, .badge-pending, .badge-info { @apply bg-slate-100 text-slate-700; }
   .badge-inprogress { @apply bg-primary-50 text-primary-700; }
   .badge-hold, .badge-high, .badge-atrisk, .badge-soon { @apply bg-amber-50 text-amber-700; }
@@ -76,7 +76,7 @@
   /* Lists */
   .list { @apply flex flex-col; }
   .lrow { @apply flex items-center gap-3 rounded-lg border-b border-slate-100 px-2 py-3 transition last:border-0 hover:bg-slate-50 max-md:min-h-[48px]; }
-  .lrow .title { @apply text-[15px] font-semibold text-slate-900; }
+  .lrow .title { @apply text-sm font-medium text-slate-900; }
   .lrow .meta { @apply mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500; }
   .timeline { @apply flex flex-col gap-3; }
   .tl-item { @apply flex gap-3; }
@@ -111,8 +111,8 @@
 
   /* Page scaffolding */
   .page-head { @apply mb-6 flex flex-wrap items-end justify-between gap-4 max-md:mb-4 max-md:flex-col max-md:items-stretch max-md:gap-3; }
-  .page-head h1 { @apply text-[28px] font-extrabold tracking-tight text-slate-900 max-md:text-2xl; }
-  .page-head .sub { @apply mt-1 text-[15px] text-slate-500; }
+  .page-head h1 { @apply text-2xl font-bold tracking-tight text-slate-900 max-md:text-[22px]; }
+  .page-head .sub { @apply mt-1 text-sm text-slate-500; }
   .page-actions { @apply flex flex-wrap items-center gap-2 max-md:w-full; }
   .page-actions > .input, .page-actions > .select { @apply max-md:min-w-0 max-md:flex-1 max-md:basis-[140px]; }
   .page-actions > .w-220, .page-actions > .w-240 { @apply max-md:basis-full; }
@@ -122,7 +122,7 @@
 
   /* Today */
   .todo-item { @apply flex items-start gap-3 border-b border-slate-100 px-2 py-2.5 last:border-0 max-md:px-1 max-md:py-3; }
-  .todo-item .txt { @apply flex-1 text-[15px] leading-relaxed; }
+  .todo-item .txt { @apply flex-1 text-sm leading-relaxed max-md:text-[15px]; }
   .todo-item.done .txt { @apply text-slate-400 line-through; }
   .todo-item .del { @apply invisible [@media(hover:none)]:visible; }
   .todo-item:hover .del { @apply visible; }
@@ -163,7 +163,7 @@
   .target-card.due { @apply border-l-4 border-l-red-500; }
   .target-card.today { @apply border-l-4 border-l-amber-500; }
   .target-card .th { @apply flex items-start justify-between gap-3; }
-  .target-card .th h3 { @apply text-base font-bold; }
+  .target-card .th h3 { @apply text-[15px] font-semibold; }
   .target-card .tm { @apply mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500; }
   .targets-grid { @apply grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-3; }
 
@@ -177,7 +177,7 @@
   /* Kanban */
   .tcard { @apply cursor-grab rounded-xl border border-slate-200/70 border-l-4 bg-white px-4 py-3.5 shadow-card transition hover:-translate-y-px hover:shadow-lift [@media(hover:none)]:cursor-default max-md:p-4; }
   .tcard.dragging { @apply opacity-50; }
-  .tcard .t { @apply mb-2 text-[15px] font-semibold leading-snug; }
+  .tcard .t { @apply mb-2 text-sm font-medium leading-snug; }
   .tcard .foot { @apply flex flex-wrap items-center gap-1.5 text-xs text-slate-500; }
   .prio { @apply h-2 w-2 rounded-full; }
   .prio-low { @apply bg-slate-400; } .prio-medium { @apply bg-cyan-500; } .prio-high { @apply bg-amber-500; } .prio-urgent { @apply bg-red-500; }
@@ -213,7 +213,7 @@
   .modal { @apply flex h-[100dvh] w-full flex-col bg-white shadow-pop animate-up md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-3xl md:animate-pop; }
   .modal.wide { @apply md:max-w-3xl; }
   .modal-head, .drawer-head { @apply sticky top-0 z-[2] flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 max-md:px-4 max-md:py-3 max-md:pt-[max(12px,env(safe-area-inset-top))]; }
-  .modal-head h2 { @apply text-xl font-bold; }
+  .modal-head h2 { @apply text-lg font-semibold; }
   .modal-body { @apply flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6 max-md:gap-4 max-md:px-4 max-md:py-5; }
   .modal-foot { @apply flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4 md:rounded-b-3xl max-md:bg-white max-md:px-4 max-md:py-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))]; }
   .modal-foot .btn { @apply max-md:flex-1; }
@@ -229,7 +229,7 @@
   .sheet-grip { @apply mx-auto mb-3 mt-1 h-1 w-9 rounded-full bg-slate-300; }
   .sheet-title { @apply px-3 pb-2 text-[13px] font-semibold text-slate-500; }
   .sheet-list { @apply flex flex-col; }
-  .sheet-item { @apply flex min-h-[52px] w-full cursor-pointer items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-2 text-left text-base font-medium text-slate-900 hover:bg-slate-100 active:bg-slate-100; }
+  .sheet-item { @apply flex min-h-[52px] w-full cursor-pointer items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-2 text-left text-[15px] font-medium text-slate-900 hover:bg-slate-100 active:bg-slate-100; }
   .sheet-item .ico { @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-primary-600; }
   .sheet-item small { @apply mt-0.5 block text-xs font-normal leading-snug text-slate-500; }
   .sheet-item.danger { @apply text-red-600; }

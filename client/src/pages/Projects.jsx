@@ -181,7 +181,7 @@ export default function Projects() {
                   <FolderIcon size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="cursor-pointer truncate text-[17px] font-bold text-slate-900 hover:text-primary-600" onClick={() => navigate(`/tasks?project=${p._id}`)}>
+                  <h3 className="cursor-pointer truncate text-[15px] font-semibold text-slate-900 hover:text-primary-600" onClick={() => navigate(`/tasks?project=${p._id}`)}>
                     {p.name}
                   </h3>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-slate-500">
@@ -199,7 +199,7 @@ export default function Projects() {
                   ]}
                 />
               </div>
-              <p className={`mt-3 line-clamp-2 min-h-[2.75rem] text-[14px] leading-relaxed ${p.description ? 'text-slate-600' : 'italic text-slate-400'}`}>{p.description || 'No description'}</p>
+              <p className={`mt-3 line-clamp-2 min-h-[2.5rem] text-[13px] leading-relaxed ${p.description ? 'text-slate-600' : 'italic text-slate-400'}`}>{p.description || 'No description'}</p>
               <div className="mt-4">
                 <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-500">
                   <span>{pct}% complete</span>
