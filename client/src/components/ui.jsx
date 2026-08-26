@@ -25,7 +25,7 @@ export function Empty({ icon = '✨', text, children }) {
   );
 }
 
-const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#4f46e5', '#b45309'];
+const COLORS = ['#4f46e5', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#2563eb', '#b45309'];
 export function colorFor(name = '') {
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -52,7 +52,14 @@ export function AzdoBadge({ azdo, kind = 'Task', onRetry }) {
   if (!azdo) return null;
   if (azdo.error) {
     return (
-      <span className="badge badge-overdue clickable" title={`Azure DevOps sync failed: ${azdo.error}${onRetry ? ' — click to retry' : ''}`} onClick={(e) => { e.stopPropagation(); onRetry?.(); }}>
+      <span
+        className="badge badge-overdue clickable"
+        title={`Azure DevOps sync failed: ${azdo.error}${onRetry ? ' — click to retry' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRetry?.();
+        }}
+      >
         ⚠ ADO {azdo.id ? `#${azdo.id}` : 'sync failed'}
       </span>
     );

@@ -129,8 +129,8 @@ export default function Today() {
         </div>
       </div>
 
-      <div className="today-layout">
-        <div className="col" style={{ gap: 14 }}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] max-md:gap-3">
+        <div className="flex flex-col gap-4 max-md:gap-3">
           <div className="card">
             <div className="card-body">
               <div className="section-title">Main focus for the day</div>

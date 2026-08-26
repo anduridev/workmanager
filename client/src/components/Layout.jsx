@@ -28,6 +28,9 @@ const TABS = [
 ];
 const MORE_PATHS = ['/projects', '/notes', '/reminders'];
 
+const Badge = ({ n, className = '' }) =>
+  n > 0 ? <span className={`grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white ${className}`}>{n}</span> : null;
+
 export default function Layout({ children, user, onLogout }) {
   const notif = useNotifications();
   const navigate = useNavigate();
@@ -66,6 +69,7 @@ export default function Layout({ children, user, onLogout }) {
 
   const showBanner = isMobile && !install.standalone && !bannerHidden;
   const moreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
+  const name = user?.displayName || user?.username || '';
 
   const addItems = [
     { icon: <CheckSquareIcon />, label: 'New task', onClick: () => navigate('/tasks?new=1') },
@@ -86,121 +90,153 @@ export default function Layout({ children, user, onLogout }) {
     { icon: <LogOutIcon />, label: 'Sign out', danger: true, onClick: onLogout },
   ];
 
-  const initials = (user?.displayName || user?.username || '?').slice(0, 1).toUpperCase();
+  const footBtn = 'flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900';
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-logo">✓</div>
-          <span>
-            WorkPA
-            <small>Your personal assistant</small>
-          </span>
+    <div className="flex min-h-screen bg-slate-50">
+      {/* ---------- Desktop sidebar ---------- */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5 md:flex">
+        <div className="mb-6 flex items-center gap-3 px-2">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-600 text-base font-bold text-white shadow-sm">✓</div>
+          <div className="leading-tight">
+            <div className="text-[15px] font-semibold text-slate-900">WorkPA</div>
+            <div className="text-xs text-slate-500">Your personal assistant</div>
+          </div>
         </div>
-        <nav className="nav">
+        <nav className="flex flex-col gap-0.5">
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <span className="ico">
-                <n.Icon size={18} />
-              </span>
-              <span className="lbl">{n.label}</span>
-              {n.to === '/reminders' && notif.unreadCount > 0 && <span className="count">{notif.unreadCount}</span>}
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) =>
+                `group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                  isActive ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <n.Icon size={18} className={isActive ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'} />
+                  <span>{n.label}</span>
+                  {n.to === '/reminders' && <Badge n={notif.unreadCount} className="ml-auto" />}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-foot">
-          <div className="user-chip">
-            <span className="avatar" style={{ background: 'var(--grad)' }}>
-              {initials}
-            </span>
-            <span className="ver">
-              <b>{user?.displayName || user?.username}</b>
-              <small>Signed in</small>
+        <div className="mt-auto flex flex-col gap-0.5 border-t border-slate-200 pt-4">
+          <div className="mb-2 flex items-center gap-3 px-2">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-600 text-sm font-semibold text-white">{name.slice(0, 1).toUpperCase()}</span>
+            <span className="min-w-0 leading-tight">
+              <div className="truncate text-sm font-semibold text-slate-900">{name}</div>
+              <div className="text-xs text-slate-500">Signed in</div>
             </span>
           </div>
           {!install.standalone && (
-            <button onClick={doInstall} title="Install WorkPA as an app">
-              <DownloadIcon size={15} /> <span className="lbl">Install app</span>
+            <button className={footBtn} onClick={doInstall} title="Install WorkPA as an app">
+              <DownloadIcon size={16} className="text-slate-400" /> Install app
             </button>
           )}
-          <button onClick={() => setPw({ current: '', next: '', confirm: '' })}>
-            <KeyIcon size={15} /> <span className="lbl">Change password</span>
+          <button className={footBtn} onClick={() => setPw({ current: '', next: '', confirm: '' })}>
+            <KeyIcon size={16} className="text-slate-400" /> Change password
           </button>
-          <button onClick={onLogout}>
-            <LogOutIcon size={15} /> <span className="lbl">Sign out</span>
+          <button className={footBtn} onClick={onLogout}>
+            <LogOutIcon size={16} className="text-slate-400" /> Sign out
           </button>
         </div>
       </aside>
-      <div className="main">
-        <header className="topbar">
-          <div className="brand topbar-brand mobile-only">
-            <div className="brand-logo">✓</div>
-            <span>
-              WorkPA
-              <small>{dayjs().format('dddd, DD MMM')}</small>
-            </span>
+
+      {/* ---------- Main column ---------- */}
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex min-h-[56px] items-center justify-between gap-3 border-b border-slate-200 bg-white/85 px-4 backdrop-blur max-md:pt-[env(safe-area-inset-top)] md:h-16 md:px-6">
+          <div className="flex items-center gap-2.5 md:hidden">
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-white">✓</div>
+            <div className="leading-tight">
+              <div className="text-[15px] font-semibold text-slate-900">WorkPA</div>
+              <div className="text-xs text-slate-500">{dayjs().format('dddd, DD MMM')}</div>
+            </div>
           </div>
-          <div className="date desktop-only">
-            <span className="dow">{dayjs().format('dddd')}</span>
+          <div className="hidden text-sm text-slate-500 md:block">
+            <span className="mr-1.5 font-semibold text-slate-900">{dayjs().format('dddd')}</span>
             {dayjs().format('DD MMMM YYYY')}
           </div>
-          <div className="topbar-actions">
-            <button className="btn btn-sm desktop-only" onClick={() => navigate('/tasks?new=1')}>
+          <div className="flex items-center gap-2">
+            <button className="btn btn-sm hidden md:inline-flex" onClick={() => navigate('/tasks?new=1')}>
               <PlusIcon size={15} /> Task
             </button>
-            <button className="btn btn-sm desktop-only" onClick={() => navigate('/reminders?new=1')}>
+            <button className="btn btn-sm hidden md:inline-flex" onClick={() => navigate('/reminders?new=1')}>
               <PlusIcon size={15} /> Reminder
             </button>
             <NotificationBell notif={notif} onInstallHelp={() => setHowTo(true)} standalone={install.standalone} />
           </div>
         </header>
+
         {showBanner && (
-          <div className="install-banner">
-            <span className="ib-ico">
+          <div className="flex items-center gap-3 border-b border-primary-100 bg-primary-50 px-4 py-2 text-[13px] text-slate-600">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-primary-600 shadow-sm">
               <DownloadIcon size={18} />
             </span>
-            <span className="grow">
-              <b>Add to home screen</b>
+            <span className="min-w-0 flex-1 leading-snug">
+              <b className="text-slate-900">Add to home screen</b>
               <br />
-              <span className="muted xs">Opens as an app · reminders even when closed</span>
+              <span className="text-xs text-slate-500">Opens as an app · reminders even when closed</span>
             </span>
-            <button className="btn btn-sm btn-primary" onClick={doInstall}>
+            <button className="btn btn-sm btn-primary !h-9 !px-3 !text-[13px]" onClick={doInstall}>
               {install.canPrompt ? 'Install' : 'How?'}
             </button>
-            <button className="close" onClick={hideBanner} aria-label="Dismiss">
+            <button className="close !h-9 !w-9" onClick={hideBanner} aria-label="Dismiss">
               ×
             </button>
           </div>
         )}
-        <main className="content">{children}</main>
+
+        <main className="mx-auto w-full max-w-7xl px-4 pb-[calc(144px+env(safe-area-inset-bottom))] pt-4 md:px-6 md:pb-20 md:pt-6">{children}</main>
       </div>
 
-      {/* Phone navigation */}
-      <nav className="tabbar mobile-only" aria-label="Main">
+      {/* ---------- Phone navigation ---------- */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Main">
         {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => (isActive && sheet !== 'more' ? 'active' : '')}>
-            <span className="ico">
-              <t.Icon size={22} />
-            </span>
-            <span className="lbl">{t.label}</span>
+          <NavLink
+            key={t.to}
+            to={t.to}
+            end={t.end}
+            className={({ isActive }) =>
+              `relative flex h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium ${isActive && sheet !== 'more' ? 'text-primary-600' : 'text-slate-500'}`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span className={`grid h-7 w-11 place-items-center rounded-full ${isActive && sheet !== 'more' ? 'bg-primary-50' : ''}`}>
+                  <t.Icon size={22} />
+                </span>
+                {t.label}
+              </>
+            )}
           </NavLink>
         ))}
-        <button className={moreActive || sheet === 'more' ? 'active' : ''} onClick={() => setSheet('more')}>
-          <span className="ico">
+        <button
+          className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium ${moreActive || sheet === 'more' ? 'text-primary-600' : 'text-slate-500'}`}
+          onClick={() => setSheet('more')}
+        >
+          <span className={`grid h-7 w-11 place-items-center rounded-full ${moreActive || sheet === 'more' ? 'bg-primary-50' : ''}`}>
             <MenuIcon size={22} />
           </span>
-          <span className="lbl">More</span>
-          {notif.unreadCount > 0 && !location.pathname.startsWith('/reminders') && <span className="count">{notif.unreadCount}</span>}
+          More
+          {!location.pathname.startsWith('/reminders') && <Badge n={notif.unreadCount} className="absolute left-[calc(50%+8px)] top-1.5 border-2 border-white" />}
         </button>
       </nav>
-      <button className="fab mobile-only" onClick={() => setSheet('add')} aria-label="Add">
+      <button
+        className="fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/40 transition active:scale-95 md:hidden"
+        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+        onClick={() => setSheet('add')}
+        aria-label="Add"
+      >
         <PlusIcon size={28} />
       </button>
 
       {sheet === 'add' && <Sheet title="Add…" items={addItems} onClose={() => setSheet(null)} />}
-      {sheet === 'more' && <Sheet title={`Signed in as ${user?.displayName || user?.username}`} items={moreItems} onClose={() => setSheet(null)} />}
-
+      {sheet === 'more' && <Sheet title={`Signed in as ${name}`} items={moreItems} onClose={() => setSheet(null)} />}
       {howTo && <InstallHelp install={install} onClose={() => setHowTo(false)} />}
 
       {pw && (
@@ -274,13 +310,13 @@ function InstallHelp({ install, onClose }) {
     >
       <ol className="steps">
         {steps.map(([t, d]) => (
-          <li key={t}>
-            <b>{t}</b>
-            <div className="muted small">{d}</div>
+          <li key={t} className="pl-1">
+            <b className="font-semibold text-slate-900">{t}</b>
+            <div className="text-[13px] text-slate-500">{d}</div>
           </li>
         ))}
       </ol>
-      <div className="small muted">Installed, WorkPA opens full screen from its own icon, and push notifications (reminders, follow-ups, the morning digest) work even when the app is closed.</div>
+      <div className="text-[13px] text-slate-500">Installed, WorkPA opens full screen from its own icon, and push notifications (reminders, follow-ups, the morning digest) work even when the app is closed.</div>
     </Modal>
   );
 }

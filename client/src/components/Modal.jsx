@@ -45,13 +45,13 @@ export function Drawer({ title, onClose, children, actions }) {
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="drawer" role="dialog" aria-modal="true">
         <div className="drawer-head">
-          <button className="close back mobile-only" onClick={onClose} aria-label="Back">
+          <button className="close back md:hidden" onClick={onClose} aria-label="Back">
             ‹
           </button>
-          <div className="grow">{title}</div>
-          <div className="row">
+          <div className="min-w-0 flex-1">{title}</div>
+          <div className="flex items-center gap-2">
             {actions}
-            <button className="close desktop-only" onClick={onClose} aria-label="Close">
+            <button className="close hidden md:grid" onClick={onClose} aria-label="Close">
               ×
             </button>
           </div>
@@ -62,7 +62,7 @@ export function Drawer({ title, onClose, children, actions }) {
   );
 }
 
-/** Bottom action sheet (phones) — a simple list of actions. `items` = [{label, icon, onClick, danger, hint}] */
+/** Bottom action sheet (phones) — a simple list of actions. `items` = [{label, icon, onClick, danger, hint, badge}] */
 export function Sheet({ title, onClose, items = [], children }) {
   useEscape(onClose);
   useScrollLock();
@@ -84,7 +84,7 @@ export function Sheet({ title, onClose, items = [], children }) {
                 }}
               >
                 <span className="ico">{it.icon}</span>
-                <span className="grow">
+                <span className="min-w-0 flex-1">
                   {it.label}
                   {it.hint && <small>{it.hint}</small>}
                 </span>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export const MOBILE_QUERY = '(max-width: 760px)';
+export const MOBILE_QUERY = '(max-width: 767px)'; // Tailwind `md` breakpoint
 
 /** True when the viewport matches a media query (updates live on resize/rotation). */
 export function useMedia(query) {

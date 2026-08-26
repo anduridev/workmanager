@@ -13,7 +13,7 @@ A lightweight, single-user work & team manager for a tech lead / project manager
 | **Reminders** | Ad-hoc "remind me…" nudges: once (date & time), daily / weekdays (time), weekly (weekday + time), monthly (day + time), each with optional start/until. Snoozing a repeating reminder only delays that occurrence — the schedule is untouched |
 | **Notifications** | A server-side scheduler fires reminders as in-app toasts + bell badge + browser notifications (with a short beep). Snooze from the bell |
 
-**Stack:** Node.js + Express + Mongoose (MongoDB) · React 18 + Vite · single deployable service.
+**Stack:** Node.js + Express + Mongoose (MongoDB) · React 18 + Vite + Tailwind CSS · single deployable service.
 
 **Auth:** single user stored in MongoDB (bcrypt password hash), JWT sessions valid for 30 days. Credentials are never kept in env files.
 
@@ -110,8 +110,8 @@ Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and app
 
 Local edits waiting to be pushed always win over a pull.
 
-## Design system
-`client/src/styles.css` is token-driven and light-only: 4px spacing grid (`--s1…--s10`), type scale 12/13/14/16/20/24/30 (Inter), radii 8/12/16/20, elevation tokens, and control heights of 40px on desktop / 48px on phones (44px minimum touch targets). Layout constants: 256px sidebar, 64px header, 24px gutters (16px on phones), 1280px content width, 56px tab bar + safe-area. Icons are inline SVG (`components/icons.jsx`), so nothing depends on emoji rendering.
+## Design system (Tailwind)
+The client is styled with **Tailwind CSS v3** (`client/tailwind.config.js`, PostCSS). `client/src/styles.css` holds a small `@layer components` vocabulary (`btn`, `input`, `card`, `badge-*`, `chip`, `segmented`, overlays, phone sheet) built with `@apply`; pages compose everything else from utilities. Palette: slate neutrals + `primary` (indigo). Sizing follows platform norms: 36–40px controls on desktop, 44–48px touch targets and 16px inputs on phones (`max-md:` variants), `md` (768px) is the phone/desktop breakpoint, 256px sidebar, 64px header, 56px tab bar + safe-area. Icons are inline SVG (`components/icons.jsx`). Note: avoid class names that collide with Tailwind utilities (e.g. `list-item`, `container`).
 
 ## Phone app (PWA) & mobile layout
 WorkPA is fully usable on a phone: bottom tab bar (Home · Today · Tasks · Team · More), a **+** button for quick-add (task, to-do, reminder, note, target, project), full-screen forms, a one-column board with status chips (tap a task to change status — there's no drag & drop on touch), card lists instead of tables, and hover-only actions always visible.

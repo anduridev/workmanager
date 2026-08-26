@@ -150,7 +150,7 @@ export default function Notes() {
 
       {notes.length === 0 && <Empty icon="🗒" text={q || tag ? 'No notes match.' : 'No notes yet. Write your first one above.'} />}
 
-      <div className="notes-layout">
+      <div className="flex flex-col gap-3">
         {grouped.pinned.length > 0 && (
           <>
             <div className="date-group">Pinned</div>

@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import { useIsMobile } from '../lib/useMedia';
 
 const STATUSES = ['todo', 'inprogress', 'hold', 'done'];
+const COL_TINT = { todo: 'bg-slate-100', inprogress: 'bg-primary-50', hold: 'bg-amber-50', done: 'bg-emerald-50' };
 const blank = () => ({ title: '', description: '', status: 'todo', priority: 'medium', project: '', tags: '', dueDate: '' });
 
 export default function Tasks() {
@@ -183,14 +184,14 @@ export default function Tasks() {
         </div>
       )}
       {view === 'board' ? (
-        <div className="kanban">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-4 max-md:gap-3">
           {STATUSES.filter((s) => !isMobile || s === mobileCol).map((s) => {
             const col = visible.filter((t) => t.status === s && (!statusFilter || statusFilter.split(',').includes(s)));
             return (
               <div
                 key={s}
                 data-status={s}
-                className={`kanban-col ${dragOver === s ? 'over' : ''}`}
+                className={`min-h-[140px] rounded-xl border p-3 transition md:min-h-[240px] ${dragOver === s ? 'border-primary-300 bg-primary-100' : `border-slate-200/70 ${COL_TINT[s]}`}`}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragOver(s);
@@ -198,15 +199,15 @@ export default function Tasks() {
                 onDragLeave={() => setDragOver(null)}
                 onDrop={(e) => onDrop(e, s)}
               >
-                <div className="kanban-col-head">
+                <div className="flex items-center justify-between px-1 pb-3 pt-1 text-[13px] font-semibold">
                   <span className="row">
-                    <StatusBadge status={s} /> <span className="n">{col.length}</span>
+                    <StatusBadge status={s} /> <span className="rounded-full bg-white px-2 text-xs font-semibold leading-5 text-slate-500 shadow-sm">{col.length}</span>
                   </span>
                   <button className="btn btn-xs btn-ghost" onClick={() => setForm({ ...blank(), status: s })} title="Add here">
                     +
                   </button>
                 </div>
-                <div className="kanban-cards">
+                <div className="flex flex-col gap-2">
                   {col.map((t) => (
                     <div
                       key={t._id}
@@ -249,7 +250,7 @@ export default function Tasks() {
           {visible.length > 0 && isMobile && (
             <ul className="list mlist">
               {visible.map((t) => (
-                <li key={t._id} className="list-item">
+                <li key={t._id} className="lrow">
                   <div className="grow clickable" onClick={() => openTask(t)}>
                     <div className="title">{t.title}</div>
                     <div className="meta">

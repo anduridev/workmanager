@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 
 const ToastCtx = createContext(null);
+const TONE = { info: 'bg-slate-900', error: 'bg-red-600', remind: 'bg-primary-700' };
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -30,17 +31,18 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={api}>
       {children}
-      <div className="toasts">
+      <div className="fixed z-[100] flex flex-col gap-2 max-md:inset-x-2 max-md:top-[calc(8px+env(safe-area-inset-top))] md:bottom-6 md:right-6">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.type}`}>
-            <div className="tb">
-              <div className="tt">{t.title}</div>
-              {t.text && <div className="tx">{t.text}</div>}
+          <div key={t.id} className={`flex items-start gap-3 rounded-xl px-4 py-3 text-white shadow-pop animate-pop md:min-w-[280px] md:max-w-[400px] ${TONE[t.type] || TONE.info}`}>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold">{t.title}</div>
+              {t.text && <div className="mt-0.5 text-xs opacity-85">{t.text}</div>}
               {t.actions && (
-                <div className="ta">
+                <div className="mt-2 flex gap-1.5">
                   {t.actions.map((a) => (
                     <button
                       key={a.label}
+                      className="rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold hover:bg-white/25"
                       onClick={() => {
                         a.onClick?.();
                         dismiss(t.id);
@@ -52,7 +54,7 @@ export function ToastProvider({ children }) {
                 </div>
               )}
             </div>
-            <button className="close" onClick={() => dismiss(t.id)}>
+            <button className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-lg leading-none text-white/70 hover:bg-white/10 hover:text-white" onClick={() => dismiss(t.id)}>
               ×
             </button>
           </div>

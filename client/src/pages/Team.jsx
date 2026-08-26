@@ -165,11 +165,11 @@ export default function Team() {
         </div>
       </div>
 
-      <div className="team-layout">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[280px_1fr] max-md:gap-3">
         <div className="card">
-          <div className={`card-head ${isMobile ? 'team-toggle' : ''}`} onClick={() => isMobile && setTeamOpen((o) => !o)}>
+          <div className={`card-head ${isMobile ? 'cursor-pointer select-none' : ''}`} onClick={() => isMobile && setTeamOpen((o) => !o)}>
             <h3>
-              {isMobile && <span className={`chev ${teamOpen ? 'open' : ''}`}>›</span>} Team
+              {isMobile && <span className={`inline-block transition-transform ${teamOpen ? 'rotate-90' : ''}`}>›</span>} Team
               {isMobile && (
                 <span className="muted small" style={{ fontWeight: 400 }}>
                   · {memberFilter ? members.find((m) => m._id === memberFilter)?.name || '…' : 'Everyone'}

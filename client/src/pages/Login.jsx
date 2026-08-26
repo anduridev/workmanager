@@ -23,19 +23,19 @@ export default function Login({ onLogin, hasUser }) {
   };
 
   return (
-    <div className="login">
-      <form className="login-card col" onSubmit={submit}>
-        <div className="row" style={{ marginBottom: 8 }}>
-          <div className="brand-logo" style={{ color: '#fff' }}>✓</div>
+    <div className="grid min-h-[100dvh] place-items-center bg-slate-50 bg-[radial-gradient(900px_500px_at_10%_-10%,#e0e7ff_0%,transparent_60%),radial-gradient(800px_500px_at_110%_110%,#ede9fe_0%,transparent_60%)] p-4">
+      <form className="flex w-full max-w-[380px] flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-pop max-md:p-6" onSubmit={submit}>
+        <div className="mb-2 flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-600 text-lg font-bold text-white shadow-sm">✓</div>
           <div>
-            <h1>WorkPA</h1>
-            <p className="muted small">Your personal work assistant</p>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">WorkPA</h1>
+            <p className="text-[13px] text-slate-500">Your personal work assistant</p>
           </div>
         </div>
         {hasUser === false && (
-          <div className="small" style={{ background: 'var(--warn-soft)', color: 'var(--warn)', padding: '8px 10px', borderRadius: 8 }}>
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
             No user exists yet. Create one from the terminal:
-            <code style={{ display: 'block', marginTop: 4 }}>npm run create-user -- &lt;username&gt; &lt;password&gt;</code>
+            <code className="mt-1 block font-mono text-xs">npm run create-user -- &lt;username&gt; &lt;password&gt;</code>
           </div>
         )}
         <label className="field">
@@ -46,8 +46,8 @@ export default function Login({ onLogin, hasUser }) {
           Password
           <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
-        {error && <div className="err">{error}</div>}
-        <button className="btn btn-primary" disabled={busy || !password || !username}>
+        {error && <div className="text-[13px] text-red-600">{error}</div>}
+        <button className="btn btn-primary mt-1 !h-11" disabled={busy || !password || !username}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
