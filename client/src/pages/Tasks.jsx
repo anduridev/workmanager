@@ -189,6 +189,7 @@ export default function Tasks() {
             return (
               <div
                 key={s}
+                data-status={s}
                 className={`kanban-col ${dragOver === s ? 'over' : ''}`}
                 onDragOver={(e) => {
                   e.preventDefault();

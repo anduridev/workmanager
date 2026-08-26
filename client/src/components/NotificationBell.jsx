@@ -4,6 +4,7 @@ import { fromNow } from '../lib/date';
 import { Targets, Reminders, Notifications, Push } from '../lib/api';
 import { useToast } from './Toast';
 import Modal from './Modal';
+import { BellIcon, DownloadIcon } from './icons';
 
 const ICON = { target: '⚑', task: '☑', reminder: '⏰', todo: '☀', system: 'ℹ' };
 
@@ -63,8 +64,9 @@ export default function NotificationBell({ notif, onInstallHelp, standalone }) {
           notif.requestPermission();
         }}
         title="Notifications"
+        aria-label="Notifications"
       >
-        🔔
+        <BellIcon size={19} />
         {notif.unreadCount > 0 && <span className="dot">{notif.unreadCount}</span>}
       </button>
       {open && (
@@ -107,7 +109,7 @@ export default function NotificationBell({ notif, onInstallHelp, standalone }) {
                       onInstallHelp();
                     }}
                   >
-                    📲 Add to home screen
+                    <DownloadIcon size={14} /> Add to home screen
                   </button>
                 )}
                 {notif.push.enabled && (

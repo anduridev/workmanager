@@ -110,6 +110,9 @@ Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and app
 
 Local edits waiting to be pushed always win over a pull.
 
+## Design system
+`client/src/styles.css` is token-driven and light-only: 4px spacing grid (`--s1…--s10`), type scale 12/13/14/16/20/24/30 (Inter), radii 8/12/16/20, elevation tokens, and control heights of 40px on desktop / 48px on phones (44px minimum touch targets). Layout constants: 256px sidebar, 64px header, 24px gutters (16px on phones), 1280px content width, 56px tab bar + safe-area. Icons are inline SVG (`components/icons.jsx`), so nothing depends on emoji rendering.
+
 ## Phone app (PWA) & mobile layout
 WorkPA is fully usable on a phone: bottom tab bar (Home · Today · Tasks · Team · More), a **+** button for quick-add (task, to-do, reminder, note, target, project), full-screen forms, a one-column board with status chips (tap a task to change status — there's no drag & drop on touch), card lists instead of tables, and hover-only actions always visible.
 

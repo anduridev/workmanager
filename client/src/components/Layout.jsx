@@ -8,22 +8,23 @@ import NotificationBell from './NotificationBell';
 import Modal, { Sheet } from './Modal';
 import { useNotifications } from './useNotifications';
 import { useToast } from './Toast';
+import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon } from './icons';
 
 const NAV = [
-  { to: '/', label: 'Dashboard', ico: '◈', end: true },
-  { to: '/today', label: 'Today', ico: '☀' },
-  { to: '/projects', label: 'Projects', ico: '▤' },
-  { to: '/tasks', label: 'My Tasks', ico: '☑' },
-  { to: '/notes', label: 'Notes', ico: '✎' },
-  { to: '/team', label: 'Team & Targets', ico: '⚑' },
-  { to: '/reminders', label: 'Reminders', ico: '⏰' },
+  { to: '/', label: 'Dashboard', Icon: HomeIcon, end: true },
+  { to: '/today', label: 'Today', Icon: SunIcon },
+  { to: '/projects', label: 'Projects', Icon: FolderIcon },
+  { to: '/tasks', label: 'My Tasks', Icon: CheckSquareIcon },
+  { to: '/notes', label: 'Notes', Icon: PenIcon },
+  { to: '/team', label: 'Team & Targets', Icon: FlagIcon },
+  { to: '/reminders', label: 'Reminders', Icon: ClockIcon },
 ];
 // Phone bottom bar: the four most-used screens + "More" for the rest
 const TABS = [
-  { to: '/', label: 'Home', ico: '◈', end: true },
-  { to: '/today', label: 'Today', ico: '☀' },
-  { to: '/tasks', label: 'Tasks', ico: '☑' },
-  { to: '/team', label: 'Team', ico: '⚑' },
+  { to: '/', label: 'Home', Icon: HomeIcon, end: true },
+  { to: '/today', label: 'Today', Icon: SunIcon },
+  { to: '/tasks', label: 'Tasks', Icon: CheckSquareIcon },
+  { to: '/team', label: 'Team', Icon: FlagIcon },
 ];
 const MORE_PATHS = ['/projects', '/notes', '/reminders'];
 
@@ -67,23 +68,25 @@ export default function Layout({ children, user, onLogout }) {
   const moreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
 
   const addItems = [
-    { icon: '☑', label: 'New task', onClick: () => navigate('/tasks?new=1') },
-    { icon: '☀', label: 'Add to today’s list', onClick: () => navigate('/today?add=1') },
-    { icon: '⏰', label: 'New reminder', onClick: () => navigate('/reminders?new=1') },
-    { icon: '✎', label: 'New note', onClick: () => navigate('/notes?new=1') },
-    { icon: '🎯', label: 'New team target', onClick: () => navigate('/team?new=1') },
-    { icon: '▤', label: 'New project', onClick: () => navigate('/projects?new=1') },
+    { icon: <CheckSquareIcon />, label: 'New task', onClick: () => navigate('/tasks?new=1') },
+    { icon: <SunIcon />, label: 'Add to today’s list', onClick: () => navigate('/today?add=1') },
+    { icon: <ClockIcon />, label: 'New reminder', onClick: () => navigate('/reminders?new=1') },
+    { icon: <PenIcon />, label: 'New note', onClick: () => navigate('/notes?new=1') },
+    { icon: <TargetIcon />, label: 'New team target', onClick: () => navigate('/team?new=1') },
+    { icon: <FolderIcon />, label: 'New project', onClick: () => navigate('/projects?new=1') },
   ];
   const moreItems = [
-    { icon: '▤', label: 'Projects', onClick: () => navigate('/projects') },
-    { icon: '✎', label: 'Notes', onClick: () => navigate('/notes') },
-    { icon: '⏰', label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
+    { icon: <FolderIcon />, label: 'Projects', onClick: () => navigate('/projects') },
+    { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
+    { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
     ...(!install.standalone
-      ? [{ icon: '📲', label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]
+      ? [{ icon: <DownloadIcon />, label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]
       : []),
-    { icon: '🔑', label: 'Change password', onClick: () => setPw({ current: '', next: '', confirm: '' }) },
-    { icon: '⏻', label: 'Sign out', danger: true, onClick: onLogout },
+    { icon: <KeyIcon />, label: 'Change password', onClick: () => setPw({ current: '', next: '', confirm: '' }) },
+    { icon: <LogOutIcon />, label: 'Sign out', danger: true, onClick: onLogout },
   ];
+
+  const initials = (user?.displayName || user?.username || '?').slice(0, 1).toUpperCase();
 
   return (
     <div className="app">
@@ -98,21 +101,35 @@ export default function Layout({ children, user, onLogout }) {
         <nav className="nav">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <span className="ico">{n.ico}</span>
+              <span className="ico">
+                <n.Icon size={18} />
+              </span>
               <span className="lbl">{n.label}</span>
               {n.to === '/reminders' && notif.unreadCount > 0 && <span className="count">{notif.unreadCount}</span>}
             </NavLink>
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span className="ver">Signed in as <b>{user?.displayName || user?.username}</b></span>
+          <div className="user-chip">
+            <span className="avatar" style={{ background: 'var(--grad)' }}>
+              {initials}
+            </span>
+            <span className="ver">
+              <b>{user?.displayName || user?.username}</b>
+              <small>Signed in</small>
+            </span>
+          </div>
           {!install.standalone && (
             <button onClick={doInstall} title="Install WorkPA as an app">
-              📲 Install app
+              <DownloadIcon size={15} /> <span className="lbl">Install app</span>
             </button>
           )}
-          <button onClick={() => setPw({ current: '', next: '', confirm: '' })}>Change password</button>
-          <button onClick={onLogout}>Sign out</button>
+          <button onClick={() => setPw({ current: '', next: '', confirm: '' })}>
+            <KeyIcon size={15} /> <span className="lbl">Change password</span>
+          </button>
+          <button onClick={onLogout}>
+            <LogOutIcon size={15} /> <span className="lbl">Sign out</span>
+          </button>
         </div>
       </aside>
       <div className="main">
@@ -124,22 +141,29 @@ export default function Layout({ children, user, onLogout }) {
               <small>{dayjs().format('dddd, DD MMM')}</small>
             </span>
           </div>
-          <div className="date desktop-only">{dayjs().format('dddd, DD MMMM YYYY')}</div>
+          <div className="date desktop-only">
+            <span className="dow">{dayjs().format('dddd')}</span>
+            {dayjs().format('DD MMMM YYYY')}
+          </div>
           <div className="topbar-actions">
             <button className="btn btn-sm desktop-only" onClick={() => navigate('/tasks?new=1')}>
-              + Task
+              <PlusIcon size={15} /> Task
             </button>
             <button className="btn btn-sm desktop-only" onClick={() => navigate('/reminders?new=1')}>
-              + Reminder
+              <PlusIcon size={15} /> Reminder
             </button>
             <NotificationBell notif={notif} onInstallHelp={() => setHowTo(true)} standalone={install.standalone} />
           </div>
         </header>
         {showBanner && (
           <div className="install-banner">
-            <span>📲</span>
+            <span className="ib-ico">
+              <DownloadIcon size={18} />
+            </span>
             <span className="grow">
-              <b>Add WorkPA to your home screen</b> — opens like an app and gets reminders even when closed.
+              <b>Add to home screen</b>
+              <br />
+              <span className="muted xs">Opens as an app · reminders even when closed</span>
             </span>
             <button className="btn btn-sm btn-primary" onClick={doInstall}>
               {install.canPrompt ? 'Install' : 'How?'}
@@ -156,18 +180,22 @@ export default function Layout({ children, user, onLogout }) {
       <nav className="tabbar mobile-only" aria-label="Main">
         {TABS.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => (isActive && sheet !== 'more' ? 'active' : '')}>
-            <span className="ico">{t.ico}</span>
+            <span className="ico">
+              <t.Icon size={22} />
+            </span>
             <span className="lbl">{t.label}</span>
           </NavLink>
         ))}
         <button className={moreActive || sheet === 'more' ? 'active' : ''} onClick={() => setSheet('more')}>
-          <span className="ico">☰</span>
+          <span className="ico">
+            <MenuIcon size={22} />
+          </span>
           <span className="lbl">More</span>
           {notif.unreadCount > 0 && !location.pathname.startsWith('/reminders') && <span className="count">{notif.unreadCount}</span>}
         </button>
       </nav>
       <button className="fab mobile-only" onClick={() => setSheet('add')} aria-label="Add">
-        +
+        <PlusIcon size={28} />
       </button>
 
       {sheet === 'add' && <Sheet title="Add…" items={addItems} onClose={() => setSheet(null)} />}
@@ -215,13 +243,13 @@ function InstallHelp({ install, onClose }) {
         ['Open WorkPA in Safari', 'Other iPhone browsers can’t install web apps with notifications.'],
         ['Tap the Share button', 'The square with an arrow at the bottom of the screen.'],
         ['Scroll down and tap “Add to Home Screen”', 'Then tap Add in the top-right corner.'],
-        ['Open WorkPA from the new icon', 'Then tap the 🔔 bell → Enable push to get reminders on this phone.'],
+        ['Open WorkPA from the new icon', 'Then tap the bell → Enable push to get reminders on this phone.'],
       ]
     : install.android
       ? [
           ['Open the browser menu', 'The ⋮ (three dots) button in Chrome, Edge or Samsung Internet.'],
           ['Tap “Install app” or “Add to Home screen”', 'Confirm on the popup.'],
-          ['Open WorkPA from the new icon', 'Then tap the 🔔 bell → Enable push to get reminders on this phone.'],
+          ['Open WorkPA from the new icon', 'Then tap the bell → Enable push to get reminders on this phone.'],
         ]
       : [
           ['Use Chrome or Edge', 'Look for the install icon (a monitor with an arrow) at the right end of the address bar.'],
