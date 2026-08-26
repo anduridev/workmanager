@@ -148,6 +148,19 @@ export default function Expenses() {
       setSyncing(false);
     }
   };
+  const [preview, setPreview] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
+  const openPreview = async () => {
+    setPreviewing(true);
+    try {
+      setPreview(await Api.scanPreview(30));
+    } catch (e) {
+      toast.error('Scan failed', e.message);
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
   const generate = async () => {
     setGenerating(true);
     try {
@@ -591,9 +604,12 @@ export default function Expenses() {
                   <div className="mt-1 text-slate-500">
                     AI parsing: {settings.ai?.hasKey ? <span className="text-emerald-600">on ({settings.ai.model})</span> : <span className="text-amber-600">off — rules only</span>}
                   </div>
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button className="btn btn-sm" onClick={() => sync(false)} disabled={syncing}>
                       {syncing ? 'Reading…' : 'Sync now'}
+                    </button>
+                    <button className="btn btn-sm btn-ghost" onClick={openPreview} disabled={previewing} title="Lists the mails the scan looked at and what the parser made of each">
+                      {previewing ? 'Scanning…' : 'What did the scan find?'}
                     </button>
                   </div>
                 </>
@@ -684,6 +700,44 @@ export default function Expenses() {
           <label className="checkbox text-sm">
             <input type="checkbox" checked={form.excluded} onChange={(e) => setForm({ ...form, excluded: e.target.checked })} /> Exclude from totals (e.g. transfer to my own account)
           </label>
+        </Modal>
+      )}
+
+      {preview && (
+        <Modal title={`Mailbox scan — last ${preview.days} days`} wide onClose={() => setPreview(null)} footer={<button className="btn" onClick={() => setPreview(null)}>Close</button>}>
+          <div className="mb-3 text-[13px] text-slate-600">
+            Google returned <b>{preview.scanned}</b> mail{preview.scanned === 1 ? '' : 's'} for the bank/payment search; <b>{preview.downloaded}</b> downloaded, <b>{preview.items.filter((i) => i.txn).length}</b> read as transactions by the rule parser
+            {preview.items.filter((i) => i.imported).length > 0 && <> · {preview.items.filter((i) => i.imported).length} already imported</>}. If your bank alerts are missing here, they are not reaching this Gmail inbox (or land in Spam) — check the bank's e-mail alert settings.
+          </div>
+          {preview.items.length === 0 && <Empty icon="📭" text="No candidate mails at all in this period." />}
+          <ul className="list">
+            {preview.items.map((it, i) => (
+              <li key={i} className="lrow items-start">
+                <div className="w-14 shrink-0 text-xs text-slate-500">{dayjs(it.date).format('DD MMM')}</div>
+                <div className="min-w-0 grow">
+                  <div className="truncate text-sm font-medium text-slate-900">{it.subject || '(no subject)'}</div>
+                  <div className="truncate text-xs text-slate-500">{it.from}</div>
+                  {!it.txn && <div className="mt-0.5 line-clamp-2 text-xs text-slate-400">{it.snippet}</div>}
+                </div>
+                <div className="shrink-0 text-right text-xs">
+                  {it.txn ? (
+                    <>
+                      <div className={`text-sm font-semibold tabular-nums ${it.txn.type === 'credit' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                        {it.txn.type === 'credit' ? '+' : '−'}
+                        {money(it.txn.amount, cur, true)}
+                      </div>
+                      <div className="text-slate-500">
+                        {it.txn.merchant} · {it.txn.category}
+                      </div>
+                      {it.imported && <span className="badge badge-done mt-1">imported</span>}
+                    </>
+                  ) : (
+                    <span className="badge badge-outline">not a transaction</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </Modal>
       )}
 

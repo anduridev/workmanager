@@ -201,6 +201,30 @@ async function syncMail({ days, full = false, limit = 200 } = {}) {
   }
 }
 
+/** Diagnostic: what the mailbox scan sees (last `days`), with the rule parser's verdict per mail. Nothing is stored. */
+async function scanPreview({ days = 30, limit = 60 } = {}) {
+  const cfg = await mailSettings();
+  const provider = await activeProvider(cfg);
+  if (!provider) throw new Error('Mailbox is not set up yet');
+  const fetched = provider === 'gmail' ? await gmail.fetchBankEmails(cfg, { sinceDays: days, afterEpoch: 0, limit }) : await mail.fetchBankEmails(cfg, { sinceDays: days, afterUid: 0, limit });
+  const known = new Set((await Expense.find({ 'email.messageId': { $in: fetched.emails.map((m) => m.messageId) } }).select('email.messageId').lean()).map((d) => d.email.messageId));
+  const items = fetched.emails
+    .map((m) => {
+      const txn = parser.parseRules(m);
+      return {
+        date: m.date,
+        from: m.fromName ? `${m.fromName} <${m.from}>` : m.from,
+        subject: m.subject,
+        bankLike: m.bankLike !== false,
+        imported: known.has(m.messageId),
+        txn: txn ? { type: txn.type, amount: txn.amount, merchant: txn.merchant, category: txn.category } : null,
+        snippet: String(m.text || '').slice(0, 160),
+      };
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  return { provider, days, scanned: fetched.scanned, matched: fetched.matched, downloaded: fetched.emails.length, items };
+}
+
 // ---------- summary ----------
 const monthRange = (monthKey) => {
   const start = dayjs(monthKey ? `${monthKey}-01` : undefined).startOf('month');
@@ -482,4 +506,4 @@ async function processExpenses(now) {
   }
 }
 
-module.exports = { publicSettings, saveSettings, testMail, syncMail, summary, monthlyTotals, checkAlerts, generateInsights, getInsights, insightStats, processExpenses, prefs, fmtMoney };
+module.exports = { publicSettings, saveSettings, testMail, syncMail, scanPreview, summary, monthlyTotals, checkAlerts, generateInsights, getInsights, insightStats, processExpenses, prefs, fmtMoney };

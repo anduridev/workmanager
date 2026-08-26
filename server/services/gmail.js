@@ -77,7 +77,20 @@ async function handleCallback(req) {
 
 async function connection() {
   const c = (await Setting.get(KEY)) || {};
-  return { connected: Boolean(decrypt(c.refreshTokenEnc)), email: c.email || '', connectedAt: c.connectedAt || null };
+  const connected = Boolean(decrypt(c.refreshTokenEnc));
+  if (connected && !c.email) {
+    // profile lookup failed at connect time (e.g. Gmail API was not enabled yet) -> fill it in now
+    try {
+      const profile = await api('/profile');
+      if (profile.emailAddress) {
+        c.email = profile.emailAddress;
+        await Setting.set(KEY, c);
+      }
+    } catch {
+      /* shown as connected without an address until the API works */
+    }
+  }
+  return { connected, email: c.email || '', connectedAt: c.connectedAt || null };
 }
 
 async function disconnect() {
@@ -107,16 +120,12 @@ async function accessToken() {
 
 async function api(path, params) {
   const token = await accessToken();
-  const url = `${API}${path}${params ? `?${new URLSearchParams(params)}` : ''}`;
+  const url = `${API}${path}${params ? `${path.includes('?') ? '&' : '?'}${new URLSearchParams(params)}` : ''}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Gmail API ${res.status}: ${data.error?.message || res.statusText}`);
   return data;
 }
-
-// Gmail search: broad OR-query for likely alert mails, refined locally with the same heuristics as IMAP
-const QUERY_TERMS =
-  '{from:bank from:alerts from:alert from:hdfc from:icici from:sbi from:axis from:kotak from:yesbank from:indusind from:idfc from:federal from:amex from:citi from:hsbc from:paytm from:phonepe from:gpay from:cred from:razorpay from:billdesk from:paypal from:zerodha from:groww subject:debited subject:credited subject:transaction subject:spent subject:payment subject:txn subject:upi subject:"credit card" subject:"debit card" subject:"a/c" subject:account subject:statement subject:emi subject:withdrawn subject:refund subject:receipt subject:invoice subject:salary subject:autopay}';
 
 const b64 = (s) => Buffer.from(String(s || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 function extract(payload, acc = { text: '', html: '' }) {
@@ -135,38 +144,48 @@ const parseFrom = (v) => {
   return m ? { name: m[1].trim(), address: m[2].trim() } : { name: '', address: String(v).trim() };
 };
 
+// Broad full-text search (Gmail stems words and searches subject + body); the metadata pass below narrows it down.
+const BROAD_QUERY =
+  '{debited credited "debited from" "credited to" spent paid payment transaction txn upi "credit card" "debit card" "a/c" account statement emi refund withdrawn withdrawal salary invoice receipt order autopay mandate "rs." inr rupees}';
+const AMOUNT_HINT = /(?:rs\.?|inr|₹|rupees)\s*:?\s*\d|\d[\d,]*(?:\.\d{1,2})?\s*(?:rs\.?|inr|rupees)\b/i;
+const MONEY_WORDS = /debited|credited|spent|paid|payment|transaction|txn|withdraw|refund|salary|emi|autopay|charged|purchase/i;
+
 /** Same shape as mail.fetchBankEmails: { emails, scanned, matched, skipped, maxAfter } */
-async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 200 } = {}) {
+async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 300 } = {}) {
   const c = cfgFrom(cfg);
   const since = Math.max(afterEpoch || 0, Math.floor(Date.now() / 1000) - sinceDays * 86400);
-  const q = `after:${since} ${QUERY_TERMS}`;
+  const q = `after:${since} -in:spam -in:trash ${BROAD_QUERY}`;
   const ids = [];
   let pageToken;
   do {
-    const r = await api('/messages', { q, maxResults: '100', ...(pageToken ? { pageToken } : {}) });
+    const r = await api('/messages', { q, maxResults: '500', ...(pageToken ? { pageToken } : {}) });
     (r.messages || []).forEach((m) => ids.push(m.id));
     pageToken = r.nextPageToken;
-  } while (pageToken && ids.length < 1500);
+  } while (pageToken && ids.length < 5000);
   // newest first from Gmail -> process oldest first so the cursor moves forward sensibly
   ids.reverse();
-  const emails = [];
+  // Pass 1 (cheap, headers + snippet): keep mails that look like bank alerts OR mention an amount together with a money word.
+  const candidates = [];
   let matched = 0;
   for (const id of ids) {
-    let msg;
     try {
-      msg = await api(`/messages/${id}`, { format: 'metadata', metadataHeaders: 'From' });
-      // metadata call is cheap; fetch subject too
-      const sub = (msg.payload?.headers || []).find((h) => h.name === 'Subject');
-      if (!sub) msg = await api(`/messages/${id}`, { format: 'metadata', metadataHeaders: ['From', 'Subject', 'Date', 'Message-ID'] });
+      const meta = await api(`/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`);
+      const from = parseFrom(header(meta, 'From'));
+      const subject = header(meta, 'Subject');
+      const bankLike = looksLikeBankMail({ from: [from], subject }, c);
+      if (bankLike) matched++;
+      const probe = `${subject}\n${meta.snippet || ''}`;
+      const hinted = AMOUNT_HINT.test(probe) && MONEY_WORDS.test(probe);
+      if (c.senders.length ? bankLike : bankLike || hinted) candidates.push({ id, from, subject, bankLike });
     } catch (e) {
       console.warn(`[gmail] ${id}: ${e.message}`);
-      continue;
     }
-    const from = parseFrom(header(msg, 'From'));
-    const subject = header(msg, 'Subject');
-    if (!looksLikeBankMail({ from: [from], subject }, c)) continue;
-    matched++;
-    if (emails.length >= limit) continue;
+  }
+  // Pass 2: download the candidates (newest `limit`), the parser (rules / AI) has the final say.
+  const emails = [];
+  const wanted = candidates.slice(-limit);
+  for (const cand of wanted) {
+    const { id, from, subject, bankLike } = cand;
     try {
       const full = await api(`/messages/${id}`, { format: 'full' });
       const { text, html } = extract(full.payload);
@@ -174,21 +193,25 @@ async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 20
         uid: 0,
         gmailId: id,
         messageId: header(full, 'Message-ID') || `gmail-${id}`,
-        subject: header(full, 'Subject') || subject,
+        subject,
         from: from.address,
         fromName: from.name,
         date: new Date(Number(full.internalDate) || Date.now()),
         text: bodyText({ text, html }).slice(0, 6000),
+        bankLike,
       });
     } catch (e) {
       console.warn(`[gmail] ${id}: ${e.message}`);
     }
   }
-  return { emails, scanned: ids.length, matched, skipped: Math.max(0, matched - emails.length), maxAfter: Math.floor(Date.now() / 1000) - 86400 }; // 1-day overlap; dedupe handles repeats
+  console.log(`[gmail] scanned ${ids.length}, candidates ${candidates.length} (bank-like ${matched}), downloaded ${emails.length}`);
+  return { emails, scanned: ids.length, matched, candidates: candidates.length, skipped: Math.max(0, candidates.length - wanted.length), maxAfter: Math.floor(Date.now() / 1000) - 86400 }; // 1-day overlap; dedupe handles repeats
 }
 
 async function test() {
   const profile = await api('/profile');
+  const c = (await Setting.get(KEY)) || {};
+  if (profile.emailAddress && c.email !== profile.emailAddress) await Setting.set(KEY, { ...c, email: profile.emailAddress });
   const r = await fetchBankEmails({}, { sinceDays: 14, limit: 0 });
   return { ok: true, email: profile.emailAddress, total: profile.messagesTotal, recent: r.scanned, matched: r.matched };
 }

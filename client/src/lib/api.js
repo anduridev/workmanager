@@ -145,6 +145,7 @@ export const Expenses = {
   insights: () => api.get('/expenses/insights'),
   generateInsights: () => api.post('/expenses/insights'),
   parsePreview: (data) => api.post('/expenses/parse-preview', data),
+  scanPreview: (days) => api.post('/expenses/scan-preview', { days }),
   gmailAuthUrl: () => api.get('/expenses/gmail/auth-url'),
   gmailDisconnect: () => api.post('/expenses/gmail/disconnect'),
   gmailTest: () => api.post('/expenses/gmail/test'),

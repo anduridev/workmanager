@@ -123,6 +123,14 @@ router.post(
   })
 );
 
+// What the scan sees (diagnostic; nothing stored). body: { days }
+router.post(
+  '/scan-preview',
+  wrap(async (req, res) => {
+    res.json(await expenses.scanPreview({ days: Number(req.body?.days) || 30 }));
+  })
+);
+
 router.get(
   '/insights',
   wrap(async (req, res) => {
