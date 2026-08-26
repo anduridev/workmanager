@@ -35,6 +35,7 @@ const BAD_MERCHANT = /^(?:your|you|a|an|the|account|card|transaction|vpa|custome
 const CATEGORY_RULES = [
   ['Salary & Income', /salary|payroll|stipend|wages|incentive|bonus credited/i],
   ['Refunds', /refund|reversal|reversed|cashback/i],
+  ['Transfers', /\bneft\b|\bimps\b|\brtgs\b|transfer|\bself\b|own account|to a\/c|fund trf|upi\/p2[pa]|\bp2[pa]\b|wallet load|added to wallet|paytm wallet|phonepe wallet|\bslice\b|slicesmallfinance|\bonecard\b|\bcred\b|credit card (?:bill|payment)|card bill/i],
   ['Food & Dining', /swiggy|zomato|domino|pizza|\bkfc\b|mcdonald|burger|starbucks|\bcafe\b|\bcoffee\b|restaurant|bistro|\bkitchen\b|biryani|dhaba|\beatery\b|\beats\b|\bfoods?\b|\bdining\b|bakery|\bchai\b|\btea\b|dunkin|subway|wow momo|haldiram|barbeque|\bbbq\b|\bbar\b|\bpub\b|\bcanteen\b|\bmess\b|\bhotel\b.*(?:bar|restaurant)/i],
   ['Groceries', /bigbasket|blinkit|zepto|instamart|dmart|d-mart|grocer|jiomart|reliance fresh|reliance smart|more supermarket|supermarket|kirana|dairy|vegetable|nature'?s basket|spencer|star bazaar|ratnadeep|vijetha|lulu/i],
   ['Fuel', /petrol|\bfuel\b|hpcl|hp petro|bpcl|bharat petro|iocl|indian ?oil|\bshell\b|nayara|reliance petro|jio-bp|\bcng\b|diesel|filling station|service station/i],
@@ -51,8 +52,7 @@ const CATEGORY_RULES = [
   ['Investments & Insurance', /zerodha|groww|upstox|kuvera|coin\b|mutual fund|\bsip\b|nps|ppf|lic\b|life insurance|policy|premium|insurance|icici pru|hdfc life|sbi life|max life|bajaj allianz|star health|niva|acko|digit|smallcase|paytm money|etmoney|indmoney|gold|sgb|fixed deposit|recurring deposit/i],
   ['Cash', /\batm\b|cash withdrawal|cash wdl|\bwdl\b|cardless cash/i],
   ['Fees & Charges', /\bcharges?\b|\bfees?\b|penalty|late payment|annual fee|\bgst\b|convenience fee|surcharge|interest charged|amb charge/i],
-  ['Shopping', /amazon|flipkart|myntra|ajio|meesho|tata cliq|croma|reliance digital|vijay sales|ikea|decathlon|zara|h&m|uniqlo|lifestyle|pantaloons|max fashion|westside|shoppers stop|mall|store|mart|retail|shop|boutique|electronics|mobile|apple store|samsung|oneplus|snapdeal|firstcry|hamleys|pepperfry|urban ladder|wakefit/i],
-  ['Transfers', /\bneft\b|\bimps\b|\brtgs\b|transfer|\bself\b|own account|to a\/c|fund trf|upi\/p2[pa]|\bp2[pa]\b|wallet load|added to wallet|paytm wallet|phonepe wallet/i],
+  ['Shopping', /amazon|flipkart|myntra|ajio|meesho|tata cliq|croma|reliance digital|vijay sales|ikea|decathlon|\bzara\b|h&m|uniqlo|lifestyle|pantaloons|max fashion|westside|shoppers stop|\bmalls?\b|\bstores?\b|\bmart\b|\bretail\b|\bshops?\b|boutique|electronics|\bmobiles?\b|apple store|samsung|oneplus|snapdeal|firstcry|hamleys|pepperfry|urban ladder|wakefit|\bgeneral store\b|\bpan shop\b|\btraders\b|\benterprises\b/i],
 ];
 
 const METHOD_RULES = [
