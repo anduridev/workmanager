@@ -89,6 +89,38 @@ export const SearchIcon = I(
   </>
 );
 export const ChevronIcon = I(<path d="m9 6 6 6-6 6" />);
+export const WalletIcon = I(
+  <>
+    <path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+    <path d="M16 12h4v4h-4a2 2 0 0 1 0-4z" />
+    <path d="M3 9h17" />
+  </>
+);
+export const MailIcon = I(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </>
+);
+export const SettingsIcon = I(
+  <>
+    <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+    <circle cx="16" cy="7" r="2" />
+    <circle cx="10" cy="17" r="2" />
+  </>
+);
+export const RefreshIcon = I(
+  <>
+    <path d="M20 12a8 8 0 1 1-2.3-5.7" />
+    <path d="M20 4v5h-5" />
+  </>
+);
+export const TrendIcon = I(
+  <>
+    <path d="M3 17l6-6 4 4 8-8" />
+    <path d="M14 7h7v7" />
+  </>
+);
 export const SparkIcon = I(
   <>
     <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />

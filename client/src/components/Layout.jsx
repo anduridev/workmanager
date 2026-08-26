@@ -8,7 +8,7 @@ import NotificationBell from './NotificationBell';
 import Modal, { Sheet } from './Modal';
 import { useNotifications } from './useNotifications';
 import { useToast } from './Toast';
-import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon } from './icons';
+import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon, WalletIcon } from './icons';
 
 const NAV = [
   { to: '/', label: 'Dashboard', Icon: HomeIcon, end: true },
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/notes', label: 'Notes', Icon: PenIcon },
   { to: '/team', label: 'Team & Targets', Icon: FlagIcon },
   { to: '/reminders', label: 'Reminders', Icon: ClockIcon },
+  { to: '/expenses', label: 'Expenses', Icon: WalletIcon },
 ];
 // Phone bottom bar: the four most-used screens + "More" for the rest
 const TABS = [
@@ -26,7 +27,7 @@ const TABS = [
   { to: '/tasks', label: 'Tasks', Icon: CheckSquareIcon },
   { to: '/team', label: 'Team', Icon: FlagIcon },
 ];
-const MORE_PATHS = ['/projects', '/notes', '/reminders'];
+const MORE_PATHS = ['/projects', '/notes', '/reminders', '/expenses'];
 
 const Badge = ({ n, className = '' }) =>
   n > 0 ? <span className={`grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white ${className}`}>{n}</span> : null;
@@ -78,11 +79,13 @@ export default function Layout({ children, user, onLogout }) {
     { icon: <PenIcon />, label: 'New note', onClick: () => navigate('/notes?new=1') },
     { icon: <TargetIcon />, label: 'New team target', onClick: () => navigate('/team?new=1') },
     { icon: <FolderIcon />, label: 'New project', onClick: () => navigate('/projects?new=1') },
+    { icon: <WalletIcon />, label: 'Add expense', onClick: () => navigate('/expenses?new=1') },
   ];
   const moreItems = [
     { icon: <FolderIcon />, label: 'Projects', onClick: () => navigate('/projects') },
     { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
     { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
+    { icon: <WalletIcon />, label: 'Expenses', hint: 'Bank alerts from your mailbox, spending insights', onClick: () => navigate('/expenses') },
     ...(!install.standalone
       ? [{ icon: <DownloadIcon />, label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]
       : []),

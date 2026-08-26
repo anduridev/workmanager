@@ -129,3 +129,20 @@ export const Integrations = {
 export const Dashboard = {
   get: () => api.get('/dashboard'),
 };
+
+export const Expenses = {
+  list: (params) => api.get('/expenses', { params }),
+  meta: () => api.get('/expenses/meta'),
+  summary: (month) => api.get('/expenses/summary', { params: { month } }),
+  create: (data) => api.post('/expenses', data),
+  update: (id, data) => api.put(`/expenses/${id}`, data),
+  remove: (id) => api.delete(`/expenses/${id}`),
+  settings: () => api.get('/expenses/settings'),
+  saveSettings: (data) => api.put('/expenses/settings', data),
+  testMail: (data) => api.post('/expenses/settings/test-mail', data),
+  testAI: (data) => api.post('/expenses/settings/test-ai', data),
+  sync: (data) => api.post('/expenses/sync', data || {}),
+  insights: () => api.get('/expenses/insights'),
+  generateInsights: () => api.post('/expenses/insights'),
+  parsePreview: (data) => api.post('/expenses/parse-preview', data),
+};

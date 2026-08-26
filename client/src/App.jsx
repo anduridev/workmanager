@@ -11,6 +11,7 @@ import Today from './pages/Today';
 import Notes from './pages/Notes';
 import Team from './pages/Team';
 import Reminders from './pages/Reminders';
+import Expenses from './pages/Expenses';
 
 export default function App() {
   const [auth, setAuth] = useState({ loading: true, loggedIn: false, hasUser: true, user: null });
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/team" element={<Team />} />
           <Route path="/team/:id" element={<Team />} />
           <Route path="/reminders" element={<Reminders />} />
+          <Route path="/expenses" element={<Expenses />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

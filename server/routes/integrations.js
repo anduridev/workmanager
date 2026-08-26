@@ -33,6 +33,15 @@ router.post(
   })
 );
 
+// Close PBIs whose sprint has ended (the scheduler does this every few minutes too)
+router.post(
+  '/azdo/close-ended-sprints',
+  wrap(async (req, res) => {
+    if (!azdo.enabled()) return res.status(400).json({ error: 'Azure DevOps is not configured' });
+    res.json(await azdo.closeEndedSprintPbis());
+  })
+);
+
 // Pull changes made in Azure DevOps / TFS (state, assignee, sprint) into WorkPA now
 router.post(
   '/azdo/pull',
@@ -46,7 +55,8 @@ router.post(
   '/azdo/sync/project/:id',
   wrap(async (req, res) => {
     if (!azdo.enabled()) return res.status(400).json({ error: 'Azure DevOps is not configured' });
-    const p = await azdo.syncProject(req.params.id);
+    // Also the "Create PBI now" action for projects created with "create later"
+    const p = await azdo.createPbiNow(req.params.id);
     if (!p) return res.status(404).json({ error: 'Project not found' });
     res.json(p);
   })

@@ -4,9 +4,9 @@ import { fromNow } from '../lib/date';
 import { Targets, Reminders, Notifications, Push } from '../lib/api';
 import { useToast } from './Toast';
 import Modal from './Modal';
-import { BellIcon, DownloadIcon, FlagIcon, CheckSquareIcon, ClockIcon, SunIcon } from './icons';
+import { BellIcon, DownloadIcon, FlagIcon, CheckSquareIcon, ClockIcon, SunIcon, WalletIcon } from './icons';
 
-const ICON = { target: <FlagIcon size={16} />, task: <CheckSquareIcon size={16} />, reminder: <ClockIcon size={16} />, todo: <SunIcon size={16} />, system: 'ℹ' };
+const ICON = { target: <FlagIcon size={16} />, task: <CheckSquareIcon size={16} />, reminder: <ClockIcon size={16} />, todo: <SunIcon size={16} />, expense: <WalletIcon size={16} />, system: 'ℹ' };
 
 export default function NotificationBell({ notif, onInstallHelp, standalone }) {
   const [open, setOpen] = useState(false);

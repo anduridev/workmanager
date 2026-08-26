@@ -27,12 +27,16 @@ router.get(
   })
 );
 
+// body.createPbi === false -> "create the PBI later" (no Azure DevOps work item, tasks wait too)
 router.post(
   '/',
   wrap(async (req, res) => {
     try {
-      const project = await Project.create(pick(req.body));
-      azdo.queueProject(project._id);
+      const data = pick(req.body);
+      const defer = azdo.enabled() && req.body.createPbi === false;
+      if (defer) data.azdo = { deferred: true };
+      const project = await Project.create(data);
+      if (!defer) azdo.queueProject(project._id);
       res.status(201).json(project);
     } catch (e) {
       if (e.code === 11000) return res.status(400).json({ error: 'A project with that name already exists' });
@@ -56,7 +60,13 @@ router.put(
     try {
       const project = await Project.findByIdAndUpdate(req.params.id, pick(req.body), { new: true, runValidators: true });
       if (!project) return res.status(404).json({ error: 'Project not found' });
-      azdo.queueProject(project._id);
+      if (project.azdo?.deferred && !project.azdo?.id) {
+        // Deferred project: only push when the user ticks "create the PBI now"
+        if (req.body.createPbi === true && azdo.enabled()) {
+          const synced = await azdo.createPbiNow(project._id);
+          return res.json(synced || project);
+        }
+      } else azdo.queueProject(project._id);
       res.json(project);
     } catch (e) {
       if (e.code === 11000) return res.status(400).json({ error: 'A project with that name already exists' });

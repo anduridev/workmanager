@@ -1,6 +1,8 @@
 /**
  * Azure DevOps / TFS sync.
- *   WorkPA Project -> Product Backlog Item (PBI), placed in the current sprint at creation
+ *   WorkPA Project -> Product Backlog Item (PBI), placed in the current sprint at creation (optional: "create later")
+ *                     One PBI per sprint: when the sprint ends the PBI is moved to Done, and the next task created
+ *                     for the project gets a fresh PBI in the current sprint (open tasks are carried over to it).
  *   WorkPA Task    -> Task, child of the project's PBI, placed in the sprint containing the task date
  *                     (due date, or creation date when there is no due date)
  *   Task status    -> System.State (mapping configurable), "hold" adds an "On Hold" tag
@@ -39,6 +41,8 @@ function config() {
     password: (process.env.AZDO_PASSWORD || '').trim(),
     pbiType: process.env.AZDO_PBI_TYPE || 'Product Backlog Item',
     pbiState: (process.env.AZDO_PBI_STATE ?? 'Approved').trim(), // state for newly created PBIs ('' = leave the process default)
+    pbiDoneState: (process.env.AZDO_PBI_DONE_STATE ?? 'Done').trim(), // state given to a PBI when its sprint ends ('' = never close)
+    carryOver: process.env.AZDO_CARRY_OVER_OPEN_TASKS !== 'false', // re-parent open tasks under the new sprint's PBI
     taskType: process.env.AZDO_TASK_TYPE || 'Task',
     areaPath: process.env.AZDO_AREA_PATH || '',
     iterationPath: process.env.AZDO_ITERATION_PATH || '',
@@ -215,6 +219,30 @@ async function iterationFor(date) {
   return c.iterationPath || null;
 }
 
+/** Sprint (iteration with dates) for an iteration path, from the cached list; null when unknown / no dates. */
+async function sprintByPath(path) {
+  if (!path) return null;
+  try {
+    const list = await getIterations();
+    return list.find((it) => it.path === path) || null;
+  } catch {
+    return null;
+  }
+}
+
+const CLOSED_STATES = ['Done', 'Closed', 'Removed', 'Completed', 'Resolved'];
+/** True when the project's current PBI is in a closed state (as last seen from TFS or set by us). */
+function pbiClosed(project) {
+  const st = project.azdo?.state;
+  return Boolean(st && (st === config().pbiDoneState || CLOSED_STATES.includes(st)));
+}
+
+/** True when the project's current PBI belongs to a sprint that has already finished. */
+async function pbiSprintEnded(project, now = dayjs()) {
+  const sp = await sprintByPath(project.azdo?.iterationPath);
+  return Boolean(sp && now.isAfter(sp.finish));
+}
+
 /** Connection check + validation of the state mapping + sprint overview (for the status card). Cached 5 min. */
 let statusCache = { key: '', at: 0, value: null };
 async function testConnection({ fresh = false } = {}) {
@@ -252,12 +280,15 @@ async function testConnectionUncached() {
       }
     }
     let currentSprint = null;
+    let currentSprintEnds = null;
     let sprintCount = 0;
     if (c.sprintByDate) {
       try {
         const list = await getIterations();
         sprintCount = list.length;
         currentSprint = await iterationFor(new Date());
+        const sp = list.find((it) => it.path === currentSprint);
+        if (sp) currentSprintEnds = sp.finish.toDate();
         if (!sprintCount) warnings.push('No sprints with dates found — work items will use the project default iteration');
         else if (!currentSprint) warnings.push('No sprint covers today — items dated now will use the project default iteration');
       } catch (e) {
@@ -265,7 +296,7 @@ async function testConnectionUncached() {
       }
     }
     const assignedTo = await assignee();
-    return { ok: true, projectName: proj.name, projectId: proj.id, apiVersion: v, currentSprint, sprintCount, assignedTo, warnings };
+    return { ok: true, projectName: proj.name, projectId: proj.id, apiVersion: v, currentSprint, currentSprintEnds, sprintCount, assignedTo, pbiDoneState: c.pbiDoneState, carryOver: c.carryOver, warnings };
   } catch (e) {
     return { ok: false, error: e.message };
   }
@@ -346,6 +377,7 @@ function markOk(doc, wi, extra = {}) {
     error: undefined,
     erroredAt: undefined,
     pendingSync: false,
+    deferred: false,
     ...extra,
   };
 }
@@ -359,6 +391,11 @@ async function syncProject(projectId) {
   const Project = require('../models/Project');
   const project = await Project.findById(projectId);
   if (!project) return null;
+  if (project.azdo?.deferred && !project.azdo?.id) {
+    // "Create PBI later": nothing to push until the user asks (createPbiNow)
+    if (project.azdo.pendingSync) await Project.updateOne({ _id: project._id }, { $set: { 'azdo.pendingSync': false } });
+    return project;
+  }
   try {
     const create = !project.azdo?.id;
     const { ops, iteration } = await projectOps(project, { create });
@@ -375,6 +412,120 @@ async function syncProject(projectId) {
   return project;
 }
 
+// ---------- one PBI per sprint ----------
+/** Move the project's PBI to the configured done state (sprint ended). Idempotent. */
+async function closePbi(project, reason = 'sprint ended') {
+  const wanted = config().pbiDoneState;
+  if (!project.azdo?.id || !wanted || pbiClosed(project)) return project;
+  const wi = await updateWorkItem(project.azdo.id, [op('System.State', wanted)]);
+  project.azdo.state = wi.fields?.['System.State'] || wanted;
+  project.azdo.rev = wi.rev;
+  project.azdo.closedAt = new Date();
+  project.azdo.closedReason = reason;
+  await project.save();
+  console.log(`[azdo] PBI #${project.azdo.id} (${project.name}) -> ${project.azdo.state}: ${reason}`);
+  return project;
+}
+
+/**
+ * Re-parent the project's open tasks under its new PBI. Tasks still sitting in the old sprint are moved to the
+ * current sprint as well (carry-over); tasks already in a later sprint keep theirs.
+ */
+async function carryOverTasks(project, oldIterationPath) {
+  const Task = require('../models/Task');
+  const open = await Task.find({ project: project._id, status: { $ne: 'done' }, 'azdo.id': { $exists: true } });
+  let moved = 0;
+  for (const t of open) {
+    try {
+      const current = await getWorkItem(t.azdo.id);
+      const ops = [];
+      const rels = current.relations || [];
+      for (let i = rels.length - 1; i >= 0; i--) {
+        if (rels[i].rel === 'System.LinkTypes.Hierarchy-Reverse') ops.push({ op: 'remove', path: `/relations/${i}` });
+      }
+      ops.push(parentLinkOp(project.azdo.apiUrl));
+      const curIter = current.fields?.['System.IterationPath'];
+      let iteration = null;
+      if (!curIter || curIter === oldIterationPath) {
+        iteration = await iterationFor(new Date());
+        if (iteration) ops.push(op('System.IterationPath', iteration));
+      }
+      const wi = await updateWorkItem(t.azdo.id, ops);
+      markOk(t, wi, { parentId: project.azdo.id, state: wi.fields?.['System.State'], iterationPath: wi.fields?.['System.IterationPath'] || iteration || curIter, rev: wi.rev, dueDateSynced: t.azdo.dueDateSynced });
+      moved++;
+    } catch (e) {
+      markErr(t, e);
+      console.warn(`[azdo] carry-over of "${t.title}": ${e.message}`);
+    }
+    await t.save();
+  }
+  if (moved) console.log(`[azdo] ${moved} open task(s) of "${project.name}" carried over to PBI #${project.azdo.id}`);
+  return moved;
+}
+
+/**
+ * Called before a *new* task is parented: if the project's PBI is in a sprint that has ended (or is already Done),
+ * close it, archive it to azdoHistory and create a fresh PBI in the current sprint. Returns the (re)loaded project.
+ */
+async function ensureCurrentPbi(project) {
+  if (!project.azdo?.id) return project;
+  const ended = await pbiSprintEnded(project);
+  if (!ended && !pbiClosed(project)) return project;
+  if (!pbiClosed(project)) await closePbi(project, 'sprint ended');
+  const old = project.toObject().azdo; // plain snapshot: the live nested object is cleared below
+  project.azdoHistory = [
+    ...(project.azdoHistory || []),
+    { id: old.id, url: old.url, apiUrl: old.apiUrl, iterationPath: old.iterationPath, state: old.state, createdAt: old.syncedAt, closedAt: old.closedAt || new Date() },
+  ];
+  project.azdo = { deferred: false };
+  project.markModified('azdo');
+  await project.save();
+  const fresh = await syncProject(project._id); // creates the new PBI in the current sprint
+  if (fresh?.azdo?.id) {
+    console.log(`[azdo] "${fresh.name}": new PBI #${fresh.azdo.id} in ${(fresh.azdo.iterationPath || '').split('\\').pop()} (previous #${old.id} closed)`);
+    if (config().carryOver) await carryOverTasks(fresh, old.iterationPath);
+  }
+  return fresh;
+}
+
+/** Scheduler: PBIs whose sprint has finished are moved to Done (once; if you reopen it in TFS we leave it alone). */
+async function closeEndedSprintPbis(now = dayjs()) {
+  if (!enabled() || !config().pbiDoneState) return { closed: 0 };
+  const Project = require('../models/Project');
+  const projects = await Project.find({ 'azdo.id': { $exists: true }, 'azdo.iterationPath': { $exists: true, $ne: '' }, 'azdo.closedAt': { $exists: false } });
+  let closed = 0;
+  for (const p of projects) {
+    if (pbiClosed(p)) continue;
+    if (!(await pbiSprintEnded(p, now))) continue;
+    try {
+      await closePbi(p, 'sprint ended');
+      closed++;
+    } catch (e) {
+      console.warn(`[azdo] closing PBI #${p.azdo.id} (${p.name}): ${e.message}`);
+    }
+  }
+  return { closed };
+}
+
+/** "Create PBI later" -> now: clears the deferred flag, creates the PBI and pushes the project's waiting tasks. */
+async function createPbiNow(projectId) {
+  const Project = require('../models/Project');
+  const Task = require('../models/Task');
+  const project = await Project.findById(projectId);
+  if (!project) return null;
+  if (project.azdo?.deferred) {
+    project.set('azdo.deferred', false);
+    await project.save();
+  }
+  const synced = await syncProject(project._id);
+  if (synced?.azdo?.id) {
+    const waiting = await Task.find({ project: project._id, $or: [{ 'azdo.deferred': true }, { 'azdo.id': { $exists: false } }] }).select('_id');
+    await Task.updateMany({ _id: { $in: waiting.map((t) => t._id) } }, { $set: { 'azdo.deferred': false, 'azdo.pendingSync': true } });
+    waiting.forEach((t) => enqueue(() => syncTask(t._id)));
+  }
+  return synced;
+}
+
 /** Create/update the ADO Task for a task (and parent it under the project's PBI). */
 async function syncTask(taskId) {
   if (!enabled()) return null;
@@ -387,7 +538,17 @@ async function syncTask(taskId) {
     let parent = null;
     if (task.project) {
       parent = await Project.findById(task.project);
+      if (parent?.azdo?.deferred && !parent.azdo?.id) {
+        // Project intentionally has no PBI yet -> its tasks wait too (pushed when the PBI is created)
+        task.set('azdo.deferred', true);
+        task.set('azdo.pendingSync', false);
+        task.set('azdo.error', undefined);
+        task.set('azdo.erroredAt', undefined);
+        await task.save();
+        return task;
+      }
       if (parent && !parent.azdo?.id) parent = await syncProject(parent._id);
+      else if (parent && !task.azdo?.id) parent = await ensureCurrentPbi(parent); // new task -> needs an open PBI in the current sprint
       if (parent && !parent.azdo?.id) throw new Error(`Project "${parent.name}" is not synced to Azure DevOps yet (${parent.azdo?.error || 'unknown'})`);
     }
     const parentId = parent?.azdo?.id || null;
@@ -464,7 +625,9 @@ async function syncAll({ force = false, limit = 500 } = {}) {
 }
 
 /** Items that still need a push: never synced, last push failed, or changed locally since the last push. */
-const NEEDS_SYNC = { $or: [{ 'azdo.id': { $exists: false } }, { 'azdo.error': { $exists: true, $ne: null } }, { 'azdo.pendingSync': true }] };
+const NEEDS_SYNC = {
+  $or: [{ 'azdo.id': { $exists: false }, 'azdo.deferred': { $ne: true } }, { 'azdo.error': { $exists: true, $ne: null } }, { 'azdo.pendingSync': true }],
+};
 
 async function pendingCounts() {
   const Project = require('../models/Project');
@@ -606,6 +769,12 @@ module.exports = {
   testConnection,
   getIterations,
   iterationFor,
+  sprintByPath,
+  pbiClosed,
+  closePbi,
+  ensureCurrentPbi,
+  closeEndedSprintPbis,
+  createPbiNow,
   syncProject,
   syncTask,
   syncNote,

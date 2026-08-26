@@ -18,7 +18,14 @@ const ProjectSchema = new mongoose.Schema(
       syncedAt: Date,
       error: String,
       erroredAt: Date,
+      deferred: Boolean, // "create the PBI later": no work item yet, and no sync until the user asks
+      closedAt: Date, // when WorkPA moved this PBI to Done (sprint ended)
+      closedReason: String,
     },
+    // Earlier PBIs of this project (one per sprint): closed at sprint end, replaced by a new one in the current sprint
+    azdoHistory: [
+      new mongoose.Schema({ id: Number, url: String, apiUrl: String, iterationPath: String, state: String, createdAt: Date, closedAt: Date }, { _id: false }),
+    ],
   },
   { timestamps: true }
 );

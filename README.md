@@ -12,6 +12,7 @@ A lightweight, single-user work & team manager for a tech lead / project manager
 | **Team & Targets** | Team members + targets assigned to them. Each target has a target date, a **follow-up reminder** (once → date & time; daily → time + optional start/until; weekly → weekday + time + optional range), and a dated follow-up log (on track / at risk / blocked) |
 | **Reminders** | Ad-hoc "remind me…" nudges: once (date & time), daily / weekdays (time), weekly (weekday + time), monthly (day + time), each with optional start/until. Snoozing a repeating reminder only delays that occurrence — the schedule is untouched |
 | **Notifications** | A server-side scheduler fires reminders as in-app toasts + bell badge + browser notifications (with a short beep). Snooze from the bell |
+| **Expenses** | Personal expense manager: reads bank / card / UPI alert mails from your inbox (IMAP, read-only) and turns them into transactions, plus manual add/edit. Monthly summary by category, merchant and account, 6-month trend, rule-based overspend alerts, and (with your OpenAI key) a written spending review with alerts, tips and suggested budgets |
 
 **Stack:** Node.js + Express + Mongoose (MongoDB) · React 18 + Vite + Tailwind CSS · single deployable service.
 
@@ -53,6 +54,9 @@ npm start          # http://localhost:5000
 | `TZ` | Timezone for the scheduler & "today" calculations, e.g. `Asia/Kolkata` |
 | `PORT` | HTTP port (Railway injects this) |
 | `DNS_SERVERS` | Optional. Comma-separated DNS servers for the `+srv` lookup. The app automatically falls back to `8.8.8.8,1.1.1.1` if the OS resolver fails (common on VPN / FortiClient machines) |
+| `APP_ENCRYPTION_KEY` | Optional. Long random string used to encrypt the mailbox password / OpenAI key at rest (defaults to `JWT_SECRET`) |
+| `OPENAI_API_KEY`, `OPENAI_MODEL` | Optional fallback when no key is saved in Expenses → Settings |
+| `AZDO_PBI_DONE_STATE`, `AZDO_CARRY_OVER_OPEN_TASKS` | Sprint-end behaviour of PBIs (see Azure DevOps sync) |
 
 ---
 
@@ -102,6 +106,12 @@ Defaults are for the **Scrum** process. For **Agile** set `AZDO_PBI_TYPE=User St
 
 Sync happens in the background right after each save — creates **and every later edit** (title, description, priority, tags, due date → sprint, project → parent, status → state, notes). Each change is flagged `pendingSync` until TFS confirms it, so nothing is lost across restarts. The ADO id (link) or the error shows as a badge on the project/task. The **Projects** page shows connection status, validates the state mapping against your process, and has **Sync all now** to backfill existing items. Failed items retry automatically every 5 minutes. Get a PAT at `https://dev.azure.com/<org>/_usersSettings/tokens`.
 
+### One PBI per sprint, and "create the PBI later"
+
+- **New project** has a checkbox *Create a Product Backlog Item in the current sprint* (ticked by default). Untick it and no work item is created; the project shows **No PBI yet** and its tasks are held back from TFS. Create it later from the project's ⋯ menu (**Create PBI in current sprint**) or from *Edit project* — the waiting tasks are pushed right after.
+- **Sprint end**: when the sprint a PBI lives in finishes, the scheduler moves the PBI to `AZDO_PBI_DONE_STATE` (default `Done`) within a few minutes. This happens once; if you reopen it in TFS it is left alone.
+- **Next task after that** (or after the PBI was closed in TFS): a fresh PBI is created in the sprint running now, the previous one is kept in the project's history (`+1 earlier PBI` on the card) and, with `AZDO_CARRY_OVER_OPEN_TASKS=true` (default), the project's still-open tasks are re-parented under the new PBI and moved to the current sprint. Done tasks stay under the old PBI.
+
 ### Two-way: changes made in TFS come back
 Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and applies remote changes:
 - state → task status (*Done* → done, *In Progress* → inprogress, *To Do* → todo, or hold when the `On Hold` tag is present), with a status-history entry marked "from TFS" and a notification ("TFS: <task> → Done · changed by Ravi")
@@ -109,6 +119,26 @@ Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and app
 - items deleted in TFS get a red badge so you notice
 
 Local edits waiting to be pushed always win over a pull.
+
+## Personal Expense Manager
+
+Open **Expenses** in the sidebar (phone: More → Expenses). Everything is configured in the app under **Expenses → ⋯ → Settings**; the mailbox password and the OpenAI key are stored **encrypted in MongoDB** (AES-256-GCM, key derived from `APP_ENCRYPTION_KEY`, falling back to `JWT_SECRET`) and are never returned by the API.
+
+**Mailbox** — any IMAP provider with an app password (Gmail, Outlook/M365, Yahoo, Zoho, iCloud, other). WorkPA logs in read-only, lists mails since the look-back window (first sync) / since the last seen UID (later syncs), keeps only mails that look like transaction alerts (sender + subject heuristics, optional sender whitelist) and parses them:
+
+1. **Rules** (offline): amount, debit/credit, merchant, account (bank + last 4 digits), method (UPI / card / NEFT…), category from a merchant keyword table. OTPs, due-date reminders, statements, offers and failed attempts are ignored.
+2. **OpenAI** (when a key is saved): mails are sent in batches of 8 and the model returns clean JSON (merchant, category, account, method, date). Falls back to rules per batch on error.
+
+Duplicates are skipped by e-mail `Message-ID` and by a fingerprint (type + amount + day + merchant). Sync runs on demand (**Sync mailbox**) and automatically every N hours (default 6). A full re-scan of the last 90 days is in the ⋯ menu.
+
+**Alerts** (work without AI, delivered as notifications + shown on the page):
+- a category on track to exceed your 3-month average by more than the configured ratio (default +30 %), once per category per month
+- the whole month on track to overspend by 20 %+
+- a single payment ≥ the large-payment threshold (default ₹10,000)
+
+**AI insights** — *Regenerate AI insights* (or automatically every Monday morning) sends aggregated statistics (monthly totals per category, last-90-day patterns, top / recurring merchants, largest payments — never raw mails) to OpenAI and shows a spending-health score, a summary, alerts, concrete tips and suggested monthly budgets. The weekly review is posted as a notification.
+
+Manual entries: **Add expense** (also in the phone's + sheet). Any transaction can be edited, re-categorised inline, excluded from totals (e.g. transfers to your own account) or deleted.
 
 ## Design system (Tailwind)
 The client is styled with **Tailwind CSS v3** (`client/tailwind.config.js`, PostCSS). `client/src/styles.css` holds a small `@layer components` vocabulary (`btn`, `input`, `card`, `badge-*`, `chip`, `segmented`, overlays, phone sheet) built with `@apply`; pages compose everything else from utilities. Palette: slate neutrals + `primary` (indigo) with a `bg-brand` indigo→violet gradient for the active nav item, primary buttons, dashboard hero and FAB; typeface Plus Jakarta Sans; borderless soft-shadow cards; secondary actions live in a ⋯ menu (`components/Menu.jsx`). Sizing follows platform norms: 36–40px controls on desktop, 44–48px touch targets and 16px inputs on phones (`max-md:` variants), `md` (768px) is the phone/desktop breakpoint, 256px sidebar, 64px header, 56px tab bar + safe-area. Icons are inline SVG (`components/icons.jsx`). Note: avoid class names that collide with Tailwind utilities (e.g. `list-item`, `container`).
@@ -145,9 +175,10 @@ server/
   middleware/auth.js  Single-user JWT auth
   models/             User, Project, Task, Note, DailyTodo, Member, Target, Reminder, Notification
   routes/             REST endpoints per model + /dashboard
-  services/scheduler.js  Reminder engine
+  services/scheduler.js  Reminder engine (+ sprint-end PBI closing, mailbox sync, spending alerts)
+  services/mail.js, expenseParser.js, expenses.js, ai.js, secrets.js  Expense manager (IMAP reader, parser, summary/alerts/insights, OpenAI client, encryption)
 client/
-  src/pages/          Dashboard, Today, Tasks, Notes, Team, Reminders, Login
+  src/pages/          Dashboard, Today, Tasks, Notes, Team, Reminders, Expenses, Login
   src/components/     Layout (sidebar + phone tab bar/FAB), NotificationBell, Toast, Modal/Drawer/Sheet, ui helpers
   src/lib/api.js      Axios client + typed helpers
   src/lib/install.js  Add-to-home-screen (beforeinstallprompt) support · useMedia.js phone breakpoint hook
@@ -156,4 +187,4 @@ client/
 
 ## API (all under `/api`, bearer token required except `/auth/*` and `/health`)
 
-`/projects` · `/tasks?project=<id|none>` `/tasks/:id/notes` `/tasks/:id/status` · `/notes` · `/daily?date=` `/daily/:date/items` `/daily/:date/carryover` · `/members` · `/targets` `/targets/:id/followups` `/targets/:id/snooze` · `/reminders` `/reminders/:id/snooze` · `/notifications` · `/dashboard`
+`/projects` · `/tasks?project=<id|none>` `/tasks/:id/notes` `/tasks/:id/status` · `/notes` · `/daily?date=` `/daily/:date/items` `/daily/:date/carryover` · `/members` · `/targets` `/targets/:id/followups` `/targets/:id/snooze` · `/reminders` `/reminders/:id/snooze` · `/notifications` · `/dashboard` · `/expenses` (`?month=`), `/expenses/summary`, `/expenses/meta`, `/expenses/settings` (+ `/test-mail`, `/test-ai`), `/expenses/sync`, `/expenses/insights` · `/integrations/azdo/sync/project/:id` (also creates a deferred PBI), `/integrations/azdo/close-ended-sprints`

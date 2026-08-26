@@ -10,6 +10,7 @@ const DailyTodo = require('../models/DailyTodo');
 const { nextOccurrence } = require('./schedule');
 const { notify } = require('./notify');
 const { processDigest } = require('./digest');
+const { processExpenses } = require('./expenses');
 
 const INTERVAL_MS = 30 * 1000;
 let running = false;
@@ -147,6 +148,16 @@ async function processAzdo() {
   }
   const p = await azdo.pullChanges();
   if (p.changed) console.log(`[azdo] pull: ${p.changed} item(s) updated from TFS`);
+  // Sprint ended -> its PBIs go to Done (a new PBI is created in the current sprint when the next task arrives)
+  const c = await azdo.closeEndedSprintPbis();
+  if (c.closed) console.log(`[azdo] sprint end: ${c.closed} PBI(s) moved to ${azdo.config().pbiDoneState}`);
+}
+
+// Expense manager: mailbox sync every few hours, daily overspend check, weekly AI review
+let expenseTicks = 0;
+async function processExpenseTick(now) {
+  if (++expenseTicks % 4 !== 0) return; // every 2 min is plenty (real work is gated by timestamps inside)
+  await processExpenses(now);
 }
 
 async function tick() {
@@ -167,6 +178,7 @@ async function tick() {
     await step('taskDueDates', processTaskDueDates);
     await step('digest', processDigest);
     await step('azdo', processAzdo);
+    await step('expenses', processExpenseTick);
   } finally {
     running = false;
   }

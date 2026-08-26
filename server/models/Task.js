@@ -40,6 +40,7 @@ const TaskSchema = new mongoose.Schema(
       rev: Number,
       pulledAt: Date,
       pendingSync: Boolean, // set when the task changed locally; cleared after a successful push
+      deferred: Boolean, // project has no PBI yet ("create later") -> task is not mirrored until it does
       syncedAt: Date,
       error: String,
       erroredAt: Date,

@@ -8,7 +8,8 @@ import Menu from '../components/Menu';
 import { FolderIcon, PlusIcon } from '../components/icons';
 import { useToast } from '../components/Toast';
 
-const blank = () => ({ name: '', description: '' });
+const blank = () => ({ name: '', description: '', createPbi: true });
+const sprintName = (path) => (path ? path.split('\\').pop() : '');
 
 export default function Projects() {
   const [projects, setProjects] = useState(null);
@@ -66,15 +67,30 @@ export default function Projects() {
       toast.error(e.message);
     }
   };
+  // "Create PBI later" -> now: creates the PBI in the current sprint and pushes the project's waiting tasks
+  const createPbi = async (p) => {
+    try {
+      const r = await Integrations.azdoSyncProject(p._id);
+      if (r?.azdo?.id) toast.success(`PBI #${r.azdo.id} created`, r.azdo.iterationPath ? `In ${sprintName(r.azdo.iterationPath)} — the project’s tasks are being pushed too` : '');
+      else toast.error('Could not create the PBI', r?.azdo?.error || '');
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+  const isDeferred = (p) => Boolean(p.azdo?.deferred && !p.azdo?.id);
 
   const save = async () => {
     try {
       if (form._id) {
-        await ProjectsApi.update(form._id, form);
-        toast.success('Project updated');
+        const r = await ProjectsApi.update(form._id, { name: form.name, description: form.description, ...(form.deferred && form.createPbi ? { createPbi: true } : {}) });
+        toast.success('Project updated', form.deferred && form.createPbi ? (r?.azdo?.id ? `PBI #${r.azdo.id} created in ${sprintName(r.azdo.iterationPath)}` : r?.azdo?.error || '') : '');
       } else {
-        await ProjectsApi.create(form);
-        toast.success('Project created', form.name);
+        await ProjectsApi.create({ name: form.name, description: form.description, createPbi: azdo?.enabled ? form.createPbi !== false : undefined });
+        toast.success(
+          'Project created',
+          azdo?.enabled ? (form.createPbi !== false ? `${form.name} · PBI is being created in the current sprint` : `${form.name} · no PBI yet (create it later from the ⋯ menu)`) : form.name
+        );
       }
       setForm(null);
       load();
@@ -130,7 +146,14 @@ export default function Projects() {
                 {azdo.connection.currentSprint && (
                   <>
                     {' '}
-                    · current sprint <b>{azdo.connection.currentSprint.split('\\').pop()}</b>
+                    · current sprint <b>{sprintName(azdo.connection.currentSprint)}</b>
+                    {azdo.connection.currentSprintEnds && <> (ends {dayjs(azdo.connection.currentSprintEnds).format('DD MMM')})</>}
+                  </>
+                )}
+                {azdo.connection.pbiDoneState && (
+                  <>
+                    {' '}
+                    · one PBI per sprint, moved to <b>{azdo.connection.pbiDoneState}</b> at sprint end
                   </>
                 )}
                 {azdo.connection.assignedTo && (
@@ -188,12 +211,30 @@ export default function Projects() {
                     <span>
                       {p.counts.total} task{p.counts.total === 1 ? '' : 's'} · {open} open
                     </span>
-                    <AzdoBadge azdo={p.azdo} kind="PBI" onRetry={() => retryProject(p)} />
+                    {isDeferred(p) ? (
+                      <span className="badge badge-outline cursor-pointer" title="No Product Backlog Item yet — click to create it in the current sprint" onClick={() => createPbi(p)}>
+                        No PBI yet
+                      </span>
+                    ) : (
+                      <AzdoBadge azdo={p.azdo} kind="PBI" onRetry={() => retryProject(p)} />
+                    )}
+                    {p.azdo?.id && p.azdo.iterationPath && (
+                      <span className="text-xs text-slate-400" title={p.azdo.iterationPath}>
+                        {sprintName(p.azdo.iterationPath)}
+                        {p.azdo.state ? ` · ${p.azdo.state}` : ''}
+                      </span>
+                    )}
+                    {p.azdoHistory?.length > 0 && (
+                      <span className="text-xs text-slate-400" title={p.azdoHistory.map((h) => `#${h.id} · ${sprintName(h.iterationPath)} · ${h.state || 'closed'}`).join('\n')}>
+                        +{p.azdoHistory.length} earlier PBI{p.azdoHistory.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Menu
                   items={[
-                    { label: 'Edit project', onClick: () => setForm({ _id: p._id, name: p.name, description: p.description }) },
+                    { label: 'Edit project', onClick: () => setForm({ _id: p._id, name: p.name, description: p.description, deferred: isDeferred(p), createPbi: false }) },
+                    ...(azdo?.enabled && isDeferred(p) ? [{ label: 'Create PBI in current sprint', onClick: () => createPbi(p) }] : []),
                     { label: 'Delete project', danger: true, onClick: () => remove(p) },
                     ...(p.counts.total > 0 ? [{ label: 'Delete with all tasks', danger: true, onClick: () => removeWithTasks(p) }] : []),
                   ]}
@@ -257,6 +298,22 @@ export default function Projects() {
             Description
             <textarea className="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Goal, scope, stakeholders…" />
           </label>
+          {azdo?.enabled && (!form._id || form.deferred) && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <label className="checkbox text-sm">
+                <input type="checkbox" checked={form.createPbi !== false} onChange={(e) => setForm({ ...form, createPbi: e.target.checked })} />
+                <span>
+                  {form._id ? 'Create the PBI in the current sprint now' : 'Create a Product Backlog Item in the current sprint'}
+                  {azdo.connection?.currentSprint && <span className="text-slate-500"> ({sprintName(azdo.connection.currentSprint)})</span>}
+                </span>
+              </label>
+              <div className="mt-1 pl-7 text-xs text-slate-500">
+                {form.createPbi !== false
+                  ? 'Tasks added to this project become child Tasks of the PBI. When the sprint ends the PBI is moved to Done, and the next task gets a fresh PBI in the sprint running then.'
+                  : 'Nothing is created in Azure DevOps. Create it later from the project’s ⋯ menu; tasks of this project are held back from TFS until then.'}
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </>
