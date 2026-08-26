@@ -150,8 +150,27 @@ const BROAD_QUERY =
 const AMOUNT_HINT = /(?:rs\.?|inr|₹|rupees)\s*:?\s*\d|\d[\d,]*(?:\.\d{1,2})?\s*(?:rs\.?|inr|rupees)\b/i;
 const MONEY_WORDS = /debited|credited|spent|paid|payment|transaction|txn|withdraw|refund|salary|emi|autopay|charged|purchase/i;
 
-/** Same shape as mail.fetchBankEmails: { emails, scanned, matched, skipped, maxAfter } */
-async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 300 } = {}) {
+/** Run `fn` over `items` with at most `n` in flight (Gmail allows ~250 quota units/s per user; a get costs 5). */
+async function pmap(items, n, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  const worker = async () => {
+    while (i < items.length) {
+      const idx = i++;
+      out[idx] = await fn(items[idx], idx);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
+  return out;
+}
+const CONCURRENCY = 8;
+
+/**
+ * Same shape as mail.fetchBankEmails: { emails, scanned, matched, candidates, skipped, truncated, maxAfter }.
+ * Candidates are processed oldest-first in batches of `limit`; when truncated, `maxAfter` points at the last
+ * processed mail so the next round continues from there (the caller loops).
+ */
+async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 250 } = {}) {
   const c = cfgFrom(cfg);
   const since = Math.max(afterEpoch || 0, Math.floor(Date.now() / 1000) - sinceDays * 86400);
   const q = `after:${since} -in:spam -in:trash ${BROAD_QUERY}`;
@@ -162,12 +181,11 @@ async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 30
     (r.messages || []).forEach((m) => ids.push(m.id));
     pageToken = r.nextPageToken;
   } while (pageToken && ids.length < 5000);
-  // newest first from Gmail -> process oldest first so the cursor moves forward sensibly
-  ids.reverse();
-  // Pass 1 (cheap, headers + snippet): keep mails that look like bank alerts OR mention an amount together with a money word.
-  const candidates = [];
+  ids.reverse(); // Gmail lists newest first -> oldest first
+
+  // Pass 1 (cheap: headers + snippet): keep mails that look like bank alerts OR mention an amount with a money word.
   let matched = 0;
-  for (const id of ids) {
+  const metas = await pmap(ids, CONCURRENCY, async (id) => {
     try {
       const meta = await api(`/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`);
       const from = parseFrom(header(meta, 'From'));
@@ -176,20 +194,22 @@ async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 30
       if (bankLike) matched++;
       const probe = `${subject}\n${meta.snippet || ''}`;
       const hinted = AMOUNT_HINT.test(probe) && MONEY_WORDS.test(probe);
-      if (c.senders.length ? bankLike : bankLike || hinted) candidates.push({ id, from, subject, bankLike });
+      return (c.senders.length ? bankLike : bankLike || hinted) ? { id, from, subject, bankLike, internalDate: Number(meta.internalDate) || 0 } : null;
     } catch (e) {
       console.warn(`[gmail] ${id}: ${e.message}`);
+      return null;
     }
-  }
-  // Pass 2: download the candidates (newest `limit`), the parser (rules / AI) has the final say.
-  const emails = [];
-  const wanted = candidates.slice(-limit);
-  for (const cand of wanted) {
-    const { id, from, subject, bankLike } = cand;
+  });
+  const candidates = metas.filter(Boolean);
+  const truncated = candidates.length > limit;
+  const wanted = candidates.slice(0, limit); // oldest first; the rest is picked up by the next round
+
+  // Pass 2: download the batch — the parser (rules / AI) has the final say.
+  const downloaded = await pmap(wanted, CONCURRENCY, async ({ id, from, subject, bankLike }) => {
     try {
       const full = await api(`/messages/${id}`, { format: 'full' });
       const { text, html } = extract(full.payload);
-      emails.push({
+      return {
         uid: 0,
         gmailId: id,
         messageId: header(full, 'Message-ID') || `gmail-${id}`,
@@ -199,13 +219,18 @@ async function fetchBankEmails(cfg, { sinceDays = 30, afterEpoch = 0, limit = 30
         date: new Date(Number(full.internalDate) || Date.now()),
         text: bodyText({ text, html }).slice(0, 6000),
         bankLike,
-      });
+      };
     } catch (e) {
       console.warn(`[gmail] ${id}: ${e.message}`);
+      return null;
     }
-  }
-  console.log(`[gmail] scanned ${ids.length}, candidates ${candidates.length} (bank-like ${matched}), downloaded ${emails.length}`);
-  return { emails, scanned: ids.length, matched, candidates: candidates.length, skipped: Math.max(0, candidates.length - wanted.length), maxAfter: Math.floor(Date.now() / 1000) - 86400 }; // 1-day overlap; dedupe handles repeats
+  });
+  const emails = downloaded.filter(Boolean);
+  const lastDate = wanted.length ? Math.floor((wanted[wanted.length - 1].internalDate || Date.now()) / 1000) : 0;
+  // Cursor: when truncated continue right after the last processed mail; otherwise now minus a day of overlap (dedupe handles repeats)
+  const maxAfter = truncated ? Math.max(since, lastDate - 1) : Math.floor(Date.now() / 1000) - 86400;
+  console.log(`[gmail] scanned ${ids.length}, candidates ${candidates.length} (bank-like ${matched}), downloaded ${emails.length}${truncated ? ', more to come' : ''}`);
+  return { emails, scanned: ids.length, matched, candidates: candidates.length, skipped: Math.max(0, candidates.length - wanted.length), truncated, maxAfter };
 }
 
 async function test() {

@@ -138,53 +138,62 @@ async function syncMail({ days, full = false, limit = 200 } = {}) {
     const provider = await activeProvider(cfg);
     if (!provider) throw new Error('Mailbox is not set up yet — open Expenses → Settings and connect Gmail');
     const sinceDays = Number(days) || cfg.lookbackDays || 30;
-    const afterUid = full ? 0 : cfg.lastUid || 0;
-    const fetched =
-      provider === 'gmail'
-        ? await gmail.fetchBankEmails(cfg, { sinceDays, afterEpoch: full ? 0 : cfg.lastAfter || 0, limit })
-        : await mail.fetchBankEmails(cfg, { sinceDays, afterUid, limit });
-    const parsed = await parser.parseMails(fetched.emails);
     const p = await prefs();
-    const result = { fetched: fetched.emails.length, scanned: fetched.scanned, matched: fetched.matched, transactions: 0, added: 0, duplicates: 0, ignored: 0, ai: 0, large: 0 };
+    const result = { fetched: 0, scanned: 0, matched: 0, transactions: 0, added: 0, duplicates: 0, ignored: 0, ai: 0, large: 0, rounds: 0 };
     const added = [];
-    for (const { mail: m, txn, via } of parsed) {
-      if (!txn) {
-        result.ignored++;
-        continue;
+    let afterUid = full ? 0 : cfg.lastUid || 0;
+    let afterEpoch = full ? 0 : cfg.lastAfter || 0;
+    let fetched;
+    // Gmail hands back candidates oldest-first in batches; keep going until the batch is not truncated (max 8 rounds)
+    do {
+      fetched = provider === 'gmail' ? await gmail.fetchBankEmails(cfg, { sinceDays, afterEpoch, limit }) : await mail.fetchBankEmails(cfg, { sinceDays, afterUid, limit });
+      result.rounds++;
+      result.fetched += fetched.emails.length;
+      result.scanned = Math.max(result.scanned, fetched.scanned);
+      result.matched = Math.max(result.matched, fetched.matched);
+      const parsed = await parser.parseMails(fetched.emails);
+      for (const { mail: m, txn, via } of parsed) {
+        if (!txn) {
+          result.ignored++;
+          continue;
+        }
+        result.transactions++;
+        if (via === 'ai') result.ai++;
+        const fp = parser.fingerprint(txn);
+        const dup = await Expense.findOne({ $or: [{ 'email.messageId': m.messageId }, { fingerprint: fp }] }).select('_id');
+        if (dup) {
+          result.duplicates++;
+          continue;
+        }
+        try {
+          const doc = await Expense.create({
+            date: txn.date,
+            amount: txn.amount,
+            currency: txn.currency || p.currency,
+            type: txn.type,
+            merchant: txn.merchant || '',
+            description: txn.description || '',
+            category: txn.category || 'Other',
+            account: txn.account || '',
+            method: txn.method || '',
+            source: 'email',
+            email: { messageId: m.messageId, uid: m.uid, gmailId: m.gmailId, subject: (m.subject || '').slice(0, 200), from: m.from, receivedAt: m.date },
+            fingerprint: fp,
+            ai: { category: txn.category, confidence: txn.confidence, via },
+          });
+          added.push(doc);
+          result.added++;
+        } catch (e) {
+          if (e.code === 11000) result.duplicates++;
+          else throw e;
+        }
       }
-      result.transactions++;
-      if (via === 'ai') result.ai++;
-      const fp = parser.fingerprint(txn);
-      const dup = await Expense.findOne({ $or: [{ 'email.messageId': m.messageId }, { fingerprint: fp }] }).select('_id');
-      if (dup) {
-        result.duplicates++;
-        continue;
-      }
-      try {
-        const doc = await Expense.create({
-          date: txn.date,
-          amount: txn.amount,
-          currency: txn.currency || p.currency,
-          type: txn.type,
-          merchant: txn.merchant || '',
-          description: txn.description || '',
-          category: txn.category || 'Other',
-          account: txn.account || '',
-          method: txn.method || '',
-          source: 'email',
-          email: { messageId: m.messageId, uid: m.uid, gmailId: m.gmailId, subject: (m.subject || '').slice(0, 200), from: m.from, receivedAt: m.date },
-          fingerprint: fp,
-          ai: { category: txn.category, confidence: txn.confidence, via },
-        });
-        added.push(doc);
-        result.added++;
-      } catch (e) {
-        if (e.code === 11000) result.duplicates++;
-        else throw e;
-      }
-    }
-    const cursor = provider === 'gmail' ? { lastAfter: fetched.maxAfter || 0 } : { lastUid: Math.max(afterUid, fetched.maxUid || 0) };
-    await Setting.set(MAIL_KEY, { ...(await Setting.get(MAIL_KEY)), ...cursor, provider, lastSyncAt: startedAt, lastError: '', lastResult: { ...result, provider } });
+      // persist the cursor after every round so an interrupted sync resumes instead of restarting
+      if (provider === 'gmail') afterEpoch = fetched.maxAfter || afterEpoch;
+      else afterUid = Math.max(afterUid, fetched.maxUid || 0);
+      const cursor = provider === 'gmail' ? { lastAfter: afterEpoch } : { lastUid: afterUid };
+      await Setting.set(MAIL_KEY, { ...(await Setting.get(MAIL_KEY)), ...cursor, provider, lastSyncAt: startedAt, lastError: '', lastResult: { ...result, provider } });
+    } while (fetched.truncated && result.rounds < 8);
     // Large debits are worth a nudge right away
     const big = added.filter((t) => t.type === 'debit' && !t.excluded && p.largeTxn > 0 && t.amount >= p.largeTxn);
     for (const t of big.slice(0, 5)) {
