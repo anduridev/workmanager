@@ -199,7 +199,8 @@ export default function Expenses() {
     load();
   };
   const setCategory = async (t, category) => {
-    await Api.update(t._id, { category });
+    const r = await Api.update(t._id, { category });
+    if (r.learned) toast.success(`${category} remembered for ${t.merchant}`, `${r.learned} other transaction${r.learned === 1 ? '' : 's'} of this merchant updated too`);
     load();
   };
 

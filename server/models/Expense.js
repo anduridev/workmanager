@@ -48,6 +48,7 @@ const ExpenseSchema = new mongoose.Schema(
     },
     fingerprint: { type: String, index: true }, // type|amount|day|merchant — catches the same transaction alerted twice
     excluded: { type: Boolean, default: false }, // ignore in totals (e.g. transfers to own account)
+    userCategory: { type: Boolean, default: false }, // category was set by the user -> future imports of this merchant reuse it
     notes: { type: String, default: '' },
     tags: [{ type: String, trim: true }],
     ai: { category: String, confidence: Number, via: String },

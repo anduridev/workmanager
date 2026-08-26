@@ -137,7 +137,7 @@ async function syncMail({ days, full = false, reimport = false, limit = 200 } = 
   try {
     if (reimport) {
       // Re-parse everything: drop mail-sourced rows (manual entries are kept) and scan from scratch
-      const r = await Expense.deleteMany({ source: 'email' });
+      const r = await Expense.deleteMany({ source: 'email', userCategory: { $ne: true } }); // rows you corrected are kept
       console.log(`[expenses] re-import: removed ${r.deletedCount} mail-sourced transaction(s)`);
       full = true;
     }
@@ -171,6 +171,12 @@ async function syncMail({ days, full = false, reimport = false, limit = 200 } = 
           result.duplicates++;
           continue;
         }
+        // Learned category: the user corrected this merchant before -> reuse it
+        let category = txn.category || 'Other';
+        if (txn.merchant) {
+          const taught = await Expense.findOne({ merchant: txn.merchant, userCategory: true }).sort({ updatedAt: -1 }).select('category').lean();
+          if (taught) category = taught.category;
+        }
         try {
           const doc = await Expense.create({
             date: txn.date,
@@ -179,7 +185,7 @@ async function syncMail({ days, full = false, reimport = false, limit = 200 } = 
             type: txn.type,
             merchant: txn.merchant || '',
             description: txn.description || '',
-            category: txn.category || 'Other',
+            category,
             account: txn.account || '',
             method: txn.method || '',
             source: 'email',
@@ -201,7 +207,7 @@ async function syncMail({ days, full = false, reimport = false, limit = 200 } = 
       await Setting.set(MAIL_KEY, { ...(await Setting.get(MAIL_KEY)), ...cursor, provider, lastSyncAt: startedAt, lastError: '', lastResult: { ...result, provider } });
     } while (fetched.truncated && result.rounds < 8);
     // Large debits are worth a nudge right away
-    const big = added.filter((t) => t.type === 'debit' && !t.excluded && p.largeTxn > 0 && t.amount >= p.largeTxn);
+    const big = reimport ? [] : added.filter((t) => t.type === 'debit' && !t.excluded && p.largeTxn > 0 && t.amount >= p.largeTxn);
     for (const t of big.slice(0, 5)) {
       result.large++;
       await notify({ kind: 'expense', title: `Large spend: ${fmtMoney(t.amount, t.currency)} at ${t.merchant || t.description || 'unknown'}`, body: `${dayjs(t.date).format('DD MMM')} · ${t.category}${t.account ? ` · ${t.account}` : ''}`, refType: 'Expense', refId: t._id, link: '/expenses' });

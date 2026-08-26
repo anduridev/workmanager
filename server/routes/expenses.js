@@ -169,10 +169,18 @@ router.put(
   wrap(async (req, res) => {
     const doc = await Expense.findById(req.params.id);
     if (!doc) return res.status(404).json({ error: 'Expense not found' });
+    const before = doc.category;
     Object.assign(doc, pick(req.body));
     if (!(doc.amount > 0)) return res.status(400).json({ error: 'Amount must be greater than 0' });
+    if (doc.category !== before) doc.userCategory = true; // remembered for future imports of the same merchant
     await doc.save();
-    res.json(doc);
+    let learned = 0;
+    if (doc.userCategory && doc.merchant && req.body.applyToMerchant !== false) {
+      // Teach the app: other rows of this merchant that were only rule/AI-categorised follow the correction
+      const r = await Expense.updateMany({ _id: { $ne: doc._id }, merchant: doc.merchant, userCategory: { $ne: true } }, { $set: { category: doc.category } });
+      learned = r.modifiedCount || 0;
+    }
+    res.json({ ...doc.toObject(), learned });
   })
 );
 
