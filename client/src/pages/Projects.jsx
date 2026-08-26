@@ -199,7 +199,7 @@ export default function Projects() {
                   ]}
                 />
               </div>
-              <p className={`mt-3 line-clamp-2 text-[14px] leading-relaxed ${p.description ? 'text-slate-600' : 'italic text-slate-400'}`}>{p.description || 'No description'}</p>
+              <p className={`mt-3 line-clamp-2 min-h-[2.75rem] text-[14px] leading-relaxed ${p.description ? 'text-slate-600' : 'italic text-slate-400'}`}>{p.description || 'No description'}</p>
               <div className="mt-4">
                 <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-500">
                   <span>{pct}% complete</span>
@@ -211,14 +211,14 @@ export default function Projects() {
                   <div className={pct === 100 ? 'bg-emerald-500' : '!bg-brand'} style={{ width: `${pct}%` }} />
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <div className="mb-5 mt-3 flex min-h-[24px] flex-wrap gap-1.5">
                 {p.counts.todo > 0 && <span className="badge badge-todo">{p.counts.todo} to do</span>}
                 {p.counts.inprogress > 0 && <span className="badge badge-inprogress">{p.counts.inprogress} in progress</span>}
                 {p.counts.hold > 0 && <span className="badge badge-hold">{p.counts.hold} on hold</span>}
                 {p.counts.done > 0 && <span className="badge badge-done">{p.counts.done} done</span>}
                 {p.counts.total === 0 && <span className="text-xs text-slate-400">No tasks yet</span>}
               </div>
-              <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-4 max-md:justify-end">
+              <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-4 max-md:justify-end" style={{ marginTop: "auto" }}>
                 <span className="text-xs text-slate-400 max-md:hidden">Created {dayjs(p.createdAt).format('DD MMM YYYY')}</span>
                 <div className="flex gap-2">
                   <button className="btn btn-sm" onClick={() => navigate(`/tasks?project=${p._id}`)}>
