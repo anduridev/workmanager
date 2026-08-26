@@ -118,6 +118,17 @@ export default function Expenses() {
       next.delete('settings');
       setParams(next, { replace: true });
     }
+    if (params.get('gmail')) {
+      // back from Google's consent screen
+      if (params.get('gmail') === 'connected') {
+        toast.success('Gmail connected', `${params.get('email') || ''} — reading bank alerts now…`);
+        loadSide();
+        setTimeout(() => sync(false), 300);
+      } else toast.error('Gmail not connected', params.get('message') || '');
+      const next = new URLSearchParams(params);
+      ['gmail', 'email', 'message'].forEach((k) => next.delete(k));
+      setParams(next, { replace: true });
+    }
   }, [params]);
 
   const sync = async (full = false) => {
@@ -222,7 +233,7 @@ export default function Expenses() {
             </button>
           ) : (
             <button className="btn" onClick={() => setShowSettings(true)}>
-              <MailIcon size={16} /> Connect mailbox
+              <MailIcon size={16} /> Connect Gmail
             </button>
           )}
           <button className="btn btn-primary" onClick={() => setForm(blankForm())}>
@@ -554,10 +565,10 @@ export default function Expenses() {
               {!settings && 'Loading…'}
               {settings && !mailReady && (
                 <>
-                  Not connected. Connect the inbox that gets your bank / card alerts and WorkPA will pull transactions every {settings.prefs?.syncHours || 6} hours.
+                  Not connected. Sign in with Google (read-only Gmail access) and WorkPA will pull your bank / card / UPI alerts every {settings.prefs?.syncHours || 6} hours.
                   <div className="mt-2">
                     <button className="btn btn-sm btn-primary" onClick={() => setShowSettings(true)}>
-                      Connect mailbox
+                      Connect Gmail
                     </button>
                   </div>
                 </>
@@ -565,7 +576,15 @@ export default function Expenses() {
               {settings && mailReady && (
                 <>
                   <div>
-                    <b className="text-slate-900">{settings.mail.user}</b> · {settings.mail.folder}
+                    {settings.mail.provider === 'gmail' ? (
+                      <>
+                        <b className="text-slate-900">{settings.gmail?.email}</b> · Gmail (Google sign-in)
+                      </>
+                    ) : (
+                      <>
+                        <b className="text-slate-900">{settings.mail.user}</b> · {settings.mail.folder} (IMAP)
+                      </>
+                    )}
                   </div>
                   <div className="mt-1 text-slate-500">{settings.mail.lastSyncAt ? `Last checked ${fromNow(settings.mail.lastSyncAt)}` : 'Never synced yet'}{settings.mail.lastResult ? ` · +${settings.mail.lastResult.added} added, ${settings.mail.lastResult.fetched} mails read` : ''}</div>
                   {settings.mail.lastError && <div className="mt-1 text-red-600">✕ {settings.mail.lastError}</div>}

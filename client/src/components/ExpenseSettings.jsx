@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Expenses as Api } from '../lib/api';
 import Modal from './Modal';
 import { useToast } from './Toast';
+import { MailIcon } from './icons';
 
 const PROVIDERS = [
   { key: 'gmail', label: 'Gmail', host: 'imap.gmail.com', port: 993, help: 'Google Account → Security → 2-Step Verification → App passwords → create one for "Mail". Paste the 16-character password here.' },
@@ -86,6 +87,41 @@ export default function ExpenseSettings({ settings, onClose, onSaved }) {
     }
   };
 
+  const g = s.gmail || { configured: false, connected: false, redirectUri: `${window.location.origin}/api/expenses/gmail/callback` };
+  const [gmailTest, setGmailTest] = useState(null);
+  const connectGmail = async () => {
+    setBusy('gmail');
+    try {
+      const { url } = await Api.gmailAuthUrl();
+      window.location.href = url; // Google consent screen -> /api/expenses/gmail/callback -> back to /expenses
+    } catch (e) {
+      toast.error(e.message);
+      setBusy('');
+    }
+  };
+  const testGmail = async () => {
+    setBusy('gmailtest');
+    setGmailTest(null);
+    try {
+      setGmailTest(await Api.gmailTest());
+    } catch (e) {
+      setGmailTest({ ok: false, error: e.message });
+    } finally {
+      setBusy('');
+    }
+  };
+  const disconnectGmail = async () => {
+    if (!window.confirm('Disconnect Gmail? Already imported transactions are kept.')) return;
+    try {
+      const r = await Api.gmailDisconnect();
+      toast.success('Gmail disconnected');
+      onSaved?.(r);
+      onClose();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
   const prov = PROVIDERS.find((p) => p.key === provider);
   const mailReady = mail.host && mail.user && (mail.pass || s.mail?.hasPassword);
 
@@ -105,7 +141,55 @@ export default function ExpenseSettings({ settings, onClose, onSaved }) {
         </>
       }
     >
-      <Section title="Mailbox (bank & card alerts)" hint="WorkPA reads your inbox over IMAP, keeps only transaction alerts and turns them into expenses. Read-only — nothing is moved or deleted. Use an app password, never your main password.">
+      <Section title="Gmail (Google sign-in)" hint="Click Connect Gmail, approve on Google's consent screen and WorkPA reads your bank / card / UPI alerts through the Gmail API — read-only, nothing is moved or deleted. Access can be revoked here or at myaccount.google.com/permissions.">
+        {!g.configured && (
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+            Not enabled on the server yet. In Google Cloud Console create an OAuth client (Web application) with the Gmail API enabled and this redirect URI:
+            <code className="mt-1 block break-all font-mono text-xs">{g.redirectUri}</code>
+            then set <code className="font-mono text-xs">GOOGLE_CLIENT_ID</code> and <code className="font-mono text-xs">GOOGLE_CLIENT_SECRET</code> on the server and reload.
+          </div>
+        )}
+        {g.configured && !g.connected && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="btn btn-primary" onClick={connectGmail} disabled={busy === 'gmail'}>
+              <MailIcon size={16} /> {busy === 'gmail' ? 'Opening Google…' : 'Connect Gmail'}
+            </button>
+            <span className="text-[13px] text-slate-500">Scope requested: read-only mail access (gmail.readonly).</span>
+          </div>
+        )}
+        {g.connected && (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="badge badge-done">Connected</span>
+            <span className="text-sm">
+              <b className="text-slate-900">{g.email}</b>
+              {g.connectedAt && <span className="text-slate-500"> · since {new Date(g.connectedAt).toLocaleDateString()}</span>}
+            </span>
+            <button className="btn btn-sm" onClick={testGmail} disabled={busy === 'gmailtest'}>
+              {busy === 'gmailtest' ? 'Checking…' : 'Test'}
+            </button>
+            <button className="btn btn-sm btn-ghost btn-danger" onClick={disconnectGmail}>
+              Disconnect
+            </button>
+            {gmailTest?.ok && (
+              <span className="text-[13px] text-emerald-700">
+                ✓ {gmailTest.recent} mails in the last 14 days, <b>{gmailTest.matched}</b> look like transaction alerts
+              </span>
+            )}
+            {gmailTest && !gmailTest.ok && <span className="text-[13px] text-red-600">✕ {gmailTest.error}</span>}
+          </div>
+        )}
+        {g.configured && (
+          <div className="mt-2 text-xs text-slate-400">
+            If your Google Cloud app is in "Testing" status, Google expires the access after 7 days — publish the app (OAuth consent screen → Publish) to keep it connected.
+          </div>
+        )}
+      </Section>
+
+      <details className="mb-5 rounded-xl border border-slate-200 p-4" open={s.mail?.provider === 'imap' || Boolean(s.mail?.host)}>
+        <summary className="cursor-pointer text-[15px] font-semibold text-slate-900">
+          Other mailbox (IMAP) <span className="text-[13px] font-normal text-slate-500">— for Outlook, Yahoo, Zoho, iCloud or any provider with an app password</span>
+        </summary>
+        <div className="mb-3 mt-3 text-[13px] text-slate-500">Used only when Gmail is not connected (or when you save IMAP details after disconnecting Gmail). Read-only; use an app password, never your main password.</div>
         <div className="chips mb-3">
           {PROVIDERS.map((p) => (
             <button key={p.key} type="button" className={`chip ${provider === p.key ? 'active' : ''}`} onClick={() => pickProvider(p)}>
@@ -169,7 +253,7 @@ export default function ExpenseSettings({ settings, onClose, onSaved }) {
             ))}
           </ul>
         )}
-      </Section>
+      </details>
 
       <Section title="AI (OpenAI)" hint="Used to read the mails accurately (merchant, category) and for the weekly spending review with alerts and tips. Your key is stored encrypted on the server.">
         <div className="form-grid">

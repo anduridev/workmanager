@@ -6,6 +6,7 @@ const dayjs = require('dayjs');
 const Expense = require('../models/Expense');
 const Setting = require('../models/Setting');
 const mail = require('./mail');
+const gmail = require('./gmail');
 const ai = require('./ai');
 const parser = require('./expenseParser');
 const { encrypt, decrypt, mask } = require('./secrets');
@@ -33,11 +34,22 @@ async function mailSettings() {
 async function prefs() {
   return { ...DEFAULT_PREFS, ...((await Setting.get(PREFS_KEY)) || {}) };
 }
-async function publicSettings() {
-  const [m, a, p, ins] = await Promise.all([Setting.get(MAIL_KEY), ai.settings(), prefs(), Setting.get(INSIGHTS_KEY)]);
+/** Which mailbox path is active: Google sign-in (gmail) or IMAP credentials. */
+async function activeProvider(mailCfg, g) {
+  const conn = g || (await gmail.connection());
+  if (mailCfg.provider === 'gmail' && conn.connected) return 'gmail';
+  if (mailCfg.host && mailCfg.user && decrypt(mailCfg.passEnc)) return 'imap';
+  return conn.connected ? 'gmail' : '';
+}
+
+async function publicSettings(req) {
+  const [m, a, p, ins, g] = await Promise.all([Setting.get(MAIL_KEY), ai.settings(), prefs(), Setting.get(INSIGHTS_KEY), gmail.connection()]);
   const mailCfg = m || {};
+  const provider = await activeProvider(mailCfg, g);
   return {
+    gmail: { configured: gmail.configured(), ...g, redirectUri: gmail.redirectUri(req) },
     mail: {
+      provider,
       host: mailCfg.host || '',
       port: mailCfg.port || 993,
       secure: mailCfg.secure !== false,
@@ -46,7 +58,8 @@ async function publicSettings() {
       senders: mailCfg.senders || [],
       lookbackDays: mailCfg.lookbackDays || 30,
       hasPassword: Boolean(decrypt(mailCfg.passEnc)),
-      configured: Boolean(mailCfg.host && mailCfg.user && decrypt(mailCfg.passEnc)),
+      imapConfigured: Boolean(mailCfg.host && mailCfg.user && decrypt(mailCfg.passEnc)),
+      configured: Boolean(provider),
       lastSyncAt: mailCfg.lastSyncAt || null,
       lastError: mailCfg.lastError || '',
       lastResult: mailCfg.lastResult || null,
@@ -74,6 +87,8 @@ async function saveSettings(body = {}) {
     };
     if (typeof m.pass === 'string' && m.pass.trim()) next.passEnc = encrypt(m.pass.trim());
     if (m.clearPassword) next.passEnc = '';
+    if (m.provider === 'gmail' || m.provider === 'imap') next.provider = m.provider;
+    else if (next.host && next.user && next.passEnc && next.provider !== 'gmail') next.provider = 'imap';
     // Mailbox / folder changed -> start again from scratch (UIDs are per mailbox)
     if (next.host !== cur.host || next.user !== cur.user || next.folder !== cur.folder) {
       next.lastUid = 0;
@@ -120,10 +135,14 @@ async function syncMail({ days, full = false, limit = 200 } = {}) {
   const startedAt = new Date();
   const cfg = await mailSettings();
   try {
-    if (!cfg.host || !cfg.user || !cfg.pass) throw new Error('Mailbox is not set up yet — open Expenses → Settings');
+    const provider = await activeProvider(cfg);
+    if (!provider) throw new Error('Mailbox is not set up yet — open Expenses → Settings and connect Gmail');
     const sinceDays = Number(days) || cfg.lookbackDays || 30;
     const afterUid = full ? 0 : cfg.lastUid || 0;
-    const fetched = await mail.fetchBankEmails(cfg, { sinceDays, afterUid, limit });
+    const fetched =
+      provider === 'gmail'
+        ? await gmail.fetchBankEmails(cfg, { sinceDays, afterEpoch: full ? 0 : cfg.lastAfter || 0, limit })
+        : await mail.fetchBankEmails(cfg, { sinceDays, afterUid, limit });
     const parsed = await parser.parseMails(fetched.emails);
     const p = await prefs();
     const result = { fetched: fetched.emails.length, scanned: fetched.scanned, matched: fetched.matched, transactions: 0, added: 0, duplicates: 0, ignored: 0, ai: 0, large: 0 };
@@ -153,7 +172,7 @@ async function syncMail({ days, full = false, limit = 200 } = {}) {
           account: txn.account || '',
           method: txn.method || '',
           source: 'email',
-          email: { messageId: m.messageId, uid: m.uid, subject: (m.subject || '').slice(0, 200), from: m.from, receivedAt: m.date },
+          email: { messageId: m.messageId, uid: m.uid, gmailId: m.gmailId, subject: (m.subject || '').slice(0, 200), from: m.from, receivedAt: m.date },
           fingerprint: fp,
           ai: { category: txn.category, confidence: txn.confidence, via },
         });
@@ -164,7 +183,8 @@ async function syncMail({ days, full = false, limit = 200 } = {}) {
         else throw e;
       }
     }
-    await Setting.set(MAIL_KEY, { ...(await Setting.get(MAIL_KEY)), lastUid: Math.max(afterUid, fetched.maxUid || 0), lastSyncAt: startedAt, lastError: '', lastResult: result });
+    const cursor = provider === 'gmail' ? { lastAfter: fetched.maxAfter || 0 } : { lastUid: Math.max(afterUid, fetched.maxUid || 0) };
+    await Setting.set(MAIL_KEY, { ...(await Setting.get(MAIL_KEY)), ...cursor, provider, lastSyncAt: startedAt, lastError: '', lastResult: { ...result, provider } });
     // Large debits are worth a nudge right away
     const big = added.filter((t) => t.type === 'debit' && !t.excluded && p.largeTxn > 0 && t.amount >= p.largeTxn);
     for (const t of big.slice(0, 5)) {
@@ -422,7 +442,7 @@ async function getInsights() {
 async function processExpenses(now) {
   const p = await prefs();
   const m = (await Setting.get(MAIL_KEY)) || {};
-  const configured = Boolean(m.host && m.user && decrypt(m.passEnc));
+  const configured = Boolean(await activeProvider(m));
   // 1) mailbox sync every `syncHours`
   if (configured && p.autoSync !== false && !syncing) {
     const last = m.lastSyncAt ? dayjs(m.lastSyncAt) : null;

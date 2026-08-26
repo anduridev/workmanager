@@ -4,6 +4,7 @@ const Expense = require('../models/Expense');
 const wrap = require('../middleware/asyncHandler');
 const expenses = require('../services/expenses');
 const ai = require('../services/ai');
+const gmail = require('../services/gmail');
 const parser = require('../services/expenseParser');
 
 // List: month=YYYY-MM | from,to; type, category, account, source, q, includeExcluded, limit
@@ -58,7 +59,32 @@ router.get(
 router.get(
   '/settings',
   wrap(async (req, res) => {
-    res.json(await expenses.publicSettings());
+    res.json(await expenses.publicSettings(req));
+  })
+);
+
+// ---- Gmail (Google sign-in). The OAuth callback itself is public: see routes/expensesPublic.js ----
+router.get(
+  '/gmail/auth-url',
+  wrap(async (req, res) => {
+    res.json({ url: gmail.authUrl(req), redirectUri: gmail.redirectUri(req) });
+  })
+);
+router.post(
+  '/gmail/disconnect',
+  wrap(async (req, res) => {
+    await gmail.disconnect();
+    res.json(await expenses.publicSettings(req));
+  })
+);
+router.post(
+  '/gmail/test',
+  wrap(async (req, res) => {
+    try {
+      res.json(await gmail.test());
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
   })
 );
 router.put(

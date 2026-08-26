@@ -56,6 +56,7 @@ npm start          # http://localhost:5000
 | `DNS_SERVERS` | Optional. Comma-separated DNS servers for the `+srv` lookup. The app automatically falls back to `8.8.8.8,1.1.1.1` if the OS resolver fails (common on VPN / FortiClient machines) |
 | `APP_ENCRYPTION_KEY` | Optional. Long random string used to encrypt the mailbox password / OpenAI key at rest (defaults to `JWT_SECRET`) |
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | Optional fallback when no key is saved in Expenses → Settings |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enables **Connect Gmail** (Google OAuth, scope `gmail.readonly`). Optional `GOOGLE_REDIRECT_URI` / `APP_URL` to pin the callback URL |
 | `AZDO_PBI_DONE_STATE`, `AZDO_CARRY_OVER_OPEN_TASKS` | Sprint-end behaviour of PBIs (see Azure DevOps sync) |
 
 ---
@@ -124,7 +125,9 @@ Local edits waiting to be pushed always win over a pull.
 
 Open **Expenses** in the sidebar (phone: More → Expenses). Everything is configured in the app under **Expenses → ⋯ → Settings**; the mailbox password and the OpenAI key are stored **encrypted in MongoDB** (AES-256-GCM, key derived from `APP_ENCRYPTION_KEY`, falling back to `JWT_SECRET`) and are never returned by the API.
 
-**Mailbox** — any IMAP provider with an app password (Gmail, Outlook/M365, Yahoo, Zoho, iCloud, other). WorkPA logs in read-only, lists mails since the look-back window (first sync) / since the last seen UID (later syncs), keeps only mails that look like transaction alerts (sender + subject heuristics, optional sender whitelist) and parses them:
+**Gmail (recommended)** — Google sign-in. One-time server setup: in Google Cloud Console create a project, enable the **Gmail API**, configure the OAuth consent screen (External; add your Google account as a test user, and *Publish* the app so the token does not expire after 7 days) and create an **OAuth client ID → Web application** with the authorised redirect URI `https://<your-domain>/api/expenses/gmail/callback` (e.g. `https://workmanager.up.railway.app/api/expenses/gmail/callback`). Put the client ID/secret in the service's variables as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Then in the app: Expenses → Settings → **Connect Gmail** → approve the read-only `gmail.readonly` scope on Google's screen → you land back on Expenses and the first sync starts. The refresh token is stored encrypted; *Disconnect* revokes it.
+
+**Other mailboxes (IMAP)** — any IMAP provider with an app password (Gmail, Outlook/M365, Yahoo, Zoho, iCloud, other). WorkPA logs in read-only, lists mails since the look-back window (first sync) / since the last seen UID (later syncs), keeps only mails that look like transaction alerts (sender + subject heuristics, optional sender whitelist) and parses them:
 
 1. **Rules** (offline): amount, debit/credit, merchant, account (bank + last 4 digits), method (UPI / card / NEFT…), category from a merchant keyword table. OTPs, due-date reminders, statements, offers and failed attempts are ignored.
 2. **OpenAI** (when a key is saved): mails are sent in batches of 8 and the model returns clean JSON (merchant, category, account, method, date). Falls back to rules per batch on error.

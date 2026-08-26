@@ -40,7 +40,8 @@ const ExpenseSchema = new mongoose.Schema(
     source: { type: String, enum: SOURCES, default: 'manual', index: true },
     email: {
       messageId: { type: String },
-      uid: Number,
+      uid: Number, // IMAP
+      gmailId: String, // Gmail API message id
       subject: String,
       from: String,
       receivedAt: Date,

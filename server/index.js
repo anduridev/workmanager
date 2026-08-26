@@ -16,6 +16,7 @@ app.use(express.json({ limit: '1mb' }));
 // Public
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/expenses', require('./routes/expensesPublic')); // Google OAuth callback (redirect, no token)
 
 // Protected API
 app.use('/api', requireAuth);
