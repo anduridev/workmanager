@@ -358,6 +358,14 @@ async function summary(monthKey) {
   };
 }
 
+/** First month with complete data (imports start mid-month -> that month is partial and must not be used as a baseline). */
+async function firstFullMonth() {
+  const earliest = await Expense.findOne({ excluded: { $ne: true } }).sort({ date: 1 }).select('date').lean();
+  if (!earliest) return null;
+  const d = dayjs(earliest.date);
+  return (d.date() <= 3 ? d : d.add(1, 'month')).format('YYYY-MM');
+}
+
 // ---------- rule-based alerts ----------
 /**
  * Once a month per category: projected spend > alertRatio × 3-month average (and material in absolute terms).
@@ -371,8 +379,9 @@ async function checkAlerts(now = dayjs(), { quiet = false } = {}) {
   const p = await prefs();
   const trend = await monthlyTotals(key, 4);
   const cur = trend[trend.length - 1];
-  const prev = trend.slice(0, 3).filter((m) => m.count > 0);
-  if (!prev.length || !cur.count) return { alerts: [] };
+  const baseline = await firstFullMonth();
+  const prev = trend.slice(0, 3).filter((m) => m.count > 0 && baseline && m.month >= baseline);
+  if (!prev.length || !cur.count) return { alerts: [] }; // no complete earlier month yet -> nothing to compare against
   const alerted = (await Setting.get(ALERTED_KEY)) || {};
   const done = new Set(alerted[key] || []);
   const scale = daysInMonth / day;
@@ -488,13 +497,18 @@ async function insightStats() {
   });
   const income90 = recent.filter((t) => t.type === 'credit' && t.category === 'Salary & Income').reduce((a, t) => a + t.amount, 0);
   const spend90 = debits.reduce((a, t) => a + t.amount, 0);
+  const earliest = recent.length ? recent.reduce((a, t) => (t.date < a ? t.date : a), recent[0].date) : null;
+  const baseline = await firstFullMonth();
+  const months = trend.filter((m) => m.count > 0 && (m.month === key || (baseline && m.month >= baseline)));
   return {
     currency: p.currency,
     today: now.format('YYYY-MM-DD'),
     dayOfMonth: now.date(),
     daysInMonth: now.daysInMonth(),
     txnCount: recent.length,
-    months: trend.map((m) => ({ month: m.month, spent: Math.round(m.debit), income: Math.round(m.credit), count: m.count, byCategory: Object.fromEntries(Object.entries(m.byCategory).map(([k, v]) => [k, Math.round(v)]).sort((a, b) => b[1] - a[1])) })),
+    dataSince: earliest ? dayjs(earliest).format('YYYY-MM-DD') : null,
+    note: months.length <= 1 ? 'Only the current month has data (imports started recently). There is NO earlier-month baseline: do not describe earlier months as low-spend or compare against a "3-month average"; analyse this month on its own (weekly pattern, categories, recurring payees, large one-offs).' : 'Months before dataSince are unavailable, not zero.',
+    months: months.map((m) => ({ month: m.month, spent: Math.round(m.debit), income: Math.round(m.credit), count: m.count, byCategory: Object.fromEntries(Object.entries(m.byCategory).map(([k, v]) => [k, Math.round(v)]).sort((a, b) => b[1] - a[1])) })),
     last90Days: { spent: Math.round(spend90), salaryIncome: Math.round(income90), savingsRatePct: income90 ? Math.round(((income90 - spend90) / income90) * 100) : null, weekendSharePct: spend90 ? Math.round((weekend / spend90) * 100) : null, weekdaySpend: Math.round(weekday), byTimeOfDay: Object.fromEntries(Object.entries(hour).map(([k, v]) => [k, Math.round(v)])) },
     topMerchants90: merchants.slice(0, 15).map((m) => ({ merchant: m.merchant, category: m.category, total: Math.round(m.total), count: m.count })),
     recurring,
@@ -513,7 +527,7 @@ async function generateInsights({ reason = 'manual' } = {}) {
   }
   if (!(await ai.enabled())) throw Object.assign(new Error('Add your OpenAI key under Expenses → Settings to get AI insights'), { status: 400 });
   const system = `You are a sharp, friendly personal-finance coach for a salaried tech lead in India (currency ${stats.currency}; write amounts like ₹1,20,000 with Indian grouping when INR).
-Analyse the JSON statistics (monthly totals with per-category breakdown, last-90-day patterns, top and recurring merchants, largest transactions). The current month is partial (dayOfMonth/daysInMonth) — project before comparing.
+Analyse the JSON statistics (monthly totals with per-category breakdown, last-90-day patterns, top and recurring merchants, largest transactions). The current month is partial (dayOfMonth/daysInMonth) — project before comparing. Respect the "note" field: when only the current month has data, judge it on its own and never invent a baseline. "Transfers" are payments to people/own accounts — mention them as money out but do not label them as overspending unless the pattern is clearly unusual.
 Return JSON only:
 {"summary":"<2-3 sentences: this month vs the user's own average, the single biggest driver>",
  "score":<0-100 spending-health score>,
