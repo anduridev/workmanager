@@ -7,18 +7,28 @@ export const setToken = (t) => (t ? localStorage.setItem(TOKEN_KEY, t) : localSt
 
 const api = axios.create({ baseURL: '/api' });
 
+const UNLOCK_KEY = 'workpa_expenses_unlock';
+export const getUnlock = () => sessionStorage.getItem(UNLOCK_KEY);
+export const setUnlock = (t) => (t ? sessionStorage.setItem(UNLOCK_KEY, t) : sessionStorage.removeItem(UNLOCK_KEY));
+
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const unlock = getUnlock();
+  if (unlock && String(config.url).startsWith('/expenses')) config.headers['X-Expenses-Unlock'] = unlock;
   return config;
 });
 
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    if (err.response?.status === 401 && !err.config.url.includes('/auth/')) {
+    if (err.response?.status === 401 && !err.config.url.includes('/auth/') && !err.config.url.includes('/expenses/unlock')) {
       setToken(null);
       window.dispatchEvent(new Event('workpa:unauthorized'));
+    }
+    if (err.response?.status === 403 && err.response.data?.locked) {
+      setUnlock(null);
+      window.dispatchEvent(new Event('workpa:expenses-locked'));
     }
     const message = err.response?.data?.error || err.message || 'Request failed';
     return Promise.reject(new Error(message));
@@ -131,6 +141,7 @@ export const Dashboard = {
 };
 
 export const Expenses = {
+  unlock: (password) => api.post('/expenses/unlock', { password }),
   list: (params) => api.get('/expenses', { params }),
   meta: () => api.get('/expenses/meta'),
   summary: (month) => api.get('/expenses/summary', { params: { month } }),

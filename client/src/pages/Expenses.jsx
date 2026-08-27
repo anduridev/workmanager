@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Expenses as Api } from '../lib/api';
+import { Expenses as Api, getUnlock, setUnlock } from '../lib/api';
 import { dayjs, fromNow, toDateInput } from '../lib/date';
 import { Empty } from '../components/ui';
 import Modal from '../components/Modal';
 import Menu from '../components/Menu';
 import ExpenseSettings from '../components/ExpenseSettings';
 import { useToast } from '../components/Toast';
-import { WalletIcon, MailIcon, SparkIcon, PlusIcon, RefreshIcon, SettingsIcon, TrendIcon, ChevronIcon } from '../components/icons';
+import { WalletIcon, MailIcon, SparkIcon, PlusIcon, RefreshIcon, SettingsIcon, TrendIcon, ChevronIcon, KeyIcon } from '../components/icons';
 
 const CAT = {
   'Food & Dining': ['bg-orange-50 text-orange-700', 'bg-orange-400'],
@@ -99,12 +99,43 @@ export default function Expenses() {
     Api.insights().then(setInsights).catch(() => {});
     Api.meta().then(setMeta).catch(() => {});
   };
+  // ---- lock: the login password is required before anything is fetched ----
+  const [locked, setLocked] = useState(() => !getUnlock());
+  const [pw, setPw] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState('');
   useEffect(() => {
-    load();
-  }, [month]);
-  useEffect(() => {
-    loadSide();
+    const onLocked = () => setLocked(true);
+    window.addEventListener('workpa:expenses-locked', onLocked);
+    return () => window.removeEventListener('workpa:expenses-locked', onLocked);
   }, []);
+  const unlock = async () => {
+    setPwBusy(true);
+    setPwError('');
+    try {
+      const r = await Api.unlock(pw);
+      setUnlock(r.token);
+      setPw('');
+      setLocked(false);
+    } catch (e) {
+      setPwError(e.message);
+    } finally {
+      setPwBusy(false);
+    }
+  };
+  const lock = () => {
+    setUnlock(null);
+    setSummary(null);
+    setList(null);
+    setLocked(true);
+  };
+
+  useEffect(() => {
+    if (!locked) load();
+  }, [month, locked]);
+  useEffect(() => {
+    if (!locked) loadSide();
+  }, [locked]);
   useEffect(() => {
     if (params.get('new')) {
       setForm(blankForm());
@@ -118,8 +149,8 @@ export default function Expenses() {
       next.delete('settings');
       setParams(next, { replace: true });
     }
-    if (params.get('gmail')) {
-      // back from Google's consent screen
+    if (params.get('gmail') && !locked) {
+      // back from Google's consent screen (handled once the manager is unlocked)
       if (params.get('gmail') === 'connected') {
         toast.success('Gmail connected', `${params.get('email') || ''} — reading bank alerts now…`);
         loadSide();
@@ -129,7 +160,7 @@ export default function Expenses() {
       ['gmail', 'email', 'message'].forEach((k) => next.delete(k));
       setParams(next, { replace: true });
     }
-  }, [params]);
+  }, [params, locked]);
 
   const sync = async (full = false) => {
     setSyncing(true);
@@ -236,6 +267,44 @@ export default function Expenses() {
   const ins = insights?.insights;
   const ruleAlerts = insights?.ruleAlerts || [];
 
+  if (locked) {
+    return (
+      <>
+        <div className="page-head">
+          <div>
+            <h1>Expenses</h1>
+            <div className="sub">Your money is private — enter your login password to open the expense manager.</div>
+          </div>
+        </div>
+        <form
+          className="card mx-auto flex max-w-[380px] flex-col gap-3 p-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (pw) unlock();
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand text-white shadow-glow">
+              <KeyIcon size={20} />
+            </span>
+            <div>
+              <div className="text-[15px] font-semibold text-slate-900">Locked</div>
+              <div className="text-xs text-slate-500">Stays open for 30 minutes in this tab</div>
+            </div>
+          </div>
+          <label className="field">
+            Login password
+            <input className="input" type="password" autoFocus autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+          </label>
+          {pwError && <div className="text-[13px] text-red-600">{pwError}</div>}
+          <button className="btn btn-primary" type="submit" disabled={!pw || pwBusy}>
+            {pwBusy ? 'Checking…' : 'Open expense manager'}
+          </button>
+        </form>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="page-head">
@@ -271,6 +340,7 @@ export default function Expenses() {
             label="More"
             items={[
               { icon: <SettingsIcon size={16} />, label: 'Settings (mailbox, AI, alerts)', onClick: () => setShowSettings(true) },
+              { icon: <KeyIcon size={16} />, label: 'Lock expense manager', onClick: lock },
               { icon: <SparkIcon size={16} />, label: 'Regenerate AI insights', onClick: generate },
               { icon: <SparkIcon size={16} />, label: 'Fix categories with AI', onClick: () => categorize(false) },
               ...(mailReady ? [{ icon: <MailIcon size={16} />, label: 'Re-import last 30 days', onClick: () => sync(true) }] : []),

@@ -5,6 +5,30 @@ const wrap = require('../middleware/asyncHandler');
 const expenses = require('../services/expenses');
 const ai = require('../services/ai');
 const gmail = require('../services/gmail');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+// ---- Expense manager lock: the login password must be re-entered (unlock token valid 30 min, kept per browser tab) ----
+const UNLOCK_SECRET = () => (process.env.JWT_SECRET || 'dev-secret-change-me') + ':expenses';
+router.post(
+  '/unlock',
+  wrap(async (req, res) => {
+    const user = await User.findById(req.user.sub);
+    if (!user || !(await user.verifyPassword(req.body?.password))) return res.status(401).json({ error: 'Wrong password' });
+    const token = jwt.sign({ sub: String(user._id), purpose: 'expenses' }, UNLOCK_SECRET(), { expiresIn: '30m' });
+    res.json({ ok: true, token, expiresIn: 30 * 60 });
+  })
+);
+router.use((req, res, next) => {
+  const t = req.headers['x-expenses-unlock'];
+  try {
+    const p = jwt.verify(String(t || ''), UNLOCK_SECRET());
+    if (p.purpose !== 'expenses' || p.sub !== req.user?.sub) throw new Error('bad');
+    return next();
+  } catch {
+    return res.status(403).json({ error: 'Expense manager is locked — enter your password', locked: true });
+  }
+});
 const parser = require('../services/expenseParser');
 
 // List: month=YYYY-MM | from,to; type, category, account, source, q, includeExcluded, limit
