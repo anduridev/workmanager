@@ -10,7 +10,7 @@ router.get(
   '/',
   wrap(async (req, res) => {
     const [projects, counts] = await Promise.all([
-      Project.find().sort({ name: 1 }).lean(),
+      Project.find().sort({ order: 1, name: 1 }).lean(),
       Task.aggregate([
         { $match: { project: { $ne: null } } },
         { $group: { _id: { project: '$project', status: '$status' }, n: { $sum: 1 } } },
@@ -58,8 +58,13 @@ router.put(
   '/:id',
   wrap(async (req, res) => {
     try {
-      const project = await Project.findByIdAndUpdate(req.params.id, pick(req.body), { new: true, runValidators: true });
+      const data = pick(req.body);
+      if (data.status === 'done') data.doneAt = new Date();
+      else if (data.status === 'active') data.doneAt = null;
+      const project = await Project.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
       if (!project) return res.status(404).json({ error: 'Project not found' });
+      const contentChanged = data.name !== undefined || data.description !== undefined;
+      if (!contentChanged && req.body.createPbi !== true) return res.json(project); // board moves (priority/status/order) don't touch Azure DevOps
       if (project.azdo?.deferred && !project.azdo?.id) {
         // Deferred project: only push when the user ticks "create the PBI now"
         if (req.body.createPbi === true && azdo.enabled()) {
@@ -96,6 +101,9 @@ function pick(body) {
   ['name', 'description'].forEach((k) => {
     if (body[k] !== undefined) out[k] = body[k];
   });
+  if (body.priority !== undefined) out.priority = ['p1', 'p2', 'p3'].includes(body.priority) ? body.priority : null;
+  if (body.status !== undefined) out.status = body.status === 'done' ? 'done' : 'active';
+  if (body.order !== undefined && Number.isFinite(Number(body.order))) out.order = Number(body.order);
   return out;
 }
 
