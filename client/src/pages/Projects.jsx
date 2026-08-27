@@ -18,7 +18,7 @@ const LANES = [
   { key: 'p2', label: 'P2', hint: 'Next', badge: 'bg-amber-100 text-amber-700', tint: 'bg-amber-50/60', bar: 'border-l-amber-400' },
   { key: 'p3', label: 'P3', hint: 'When time allows', badge: 'bg-sky-100 text-sky-700', tint: 'bg-sky-50/60', bar: 'border-l-sky-400' },
   { key: 'none', label: 'Unprioritised', hint: 'Not placed yet', badge: 'bg-slate-200 text-slate-700', tint: 'bg-slate-100', bar: 'border-l-slate-300' },
-  { key: 'done', label: 'Done', hint: 'Finished projects', badge: 'bg-emerald-100 text-emerald-700', tint: 'bg-emerald-50/70', bar: 'border-l-emerald-500' },
+  { key: 'done', label: 'Done', hint: 'Finished work items', badge: 'bg-emerald-100 text-emerald-700', tint: 'bg-emerald-50/70', bar: 'border-l-emerald-500' },
 ];
 const laneOf = (p) => (p.status === 'done' ? 'done' : p.priority || 'none');
 
@@ -67,7 +67,7 @@ export default function Projects() {
       const r = await Integrations.azdoSyncAll(false);
       toast.success(
         'Azure DevOps sync finished',
-        `Pushed: projects ${r.projects.synced} ok / ${r.projects.failed} failed · tasks ${r.tasks.synced} ok / ${r.tasks.failed} failed · Pulled: ${r.pull?.changed || 0} change(s) from TFS`
+        `Pushed: work items ${r.projects.synced} ok / ${r.projects.failed} failed · tasks ${r.tasks.synced} ok / ${r.tasks.failed} failed · Pulled: ${r.pull?.changed || 0} change(s) from TFS`
       );
       load();
       loadAzdo();
@@ -89,7 +89,7 @@ export default function Projects() {
   const createPbi = async (p) => {
     try {
       const r = await Integrations.azdoSyncProject(p._id);
-      if (r?.azdo?.id) toast.success(`PBI #${r.azdo.id} created`, r.azdo.iterationPath ? `In ${sprintName(r.azdo.iterationPath)} — the project’s tasks are being pushed too` : '');
+      if (r?.azdo?.id) toast.success(`PBI #${r.azdo.id} created`, r.azdo.iterationPath ? `In ${sprintName(r.azdo.iterationPath)} — the work item’s tasks are being pushed too` : '');
       else toast.error('Could not create the PBI', r?.azdo?.error || '');
       load();
     } catch (e) {
@@ -102,11 +102,11 @@ export default function Projects() {
     try {
       if (form._id) {
         const r = await ProjectsApi.update(form._id, { name: form.name, description: form.description, priority: form.priority || null, ...(form.deferred && form.createPbi ? { createPbi: true } : {}) });
-        toast.success('Project updated', form.deferred && form.createPbi ? (r?.azdo?.id ? `PBI #${r.azdo.id} created in ${sprintName(r.azdo.iterationPath)}` : r?.azdo?.error || '') : '');
+        toast.success('Work item updated', form.deferred && form.createPbi ? (r?.azdo?.id ? `PBI #${r.azdo.id} created in ${sprintName(r.azdo.iterationPath)}` : r?.azdo?.error || '') : '');
       } else {
         await ProjectsApi.create({ name: form.name, description: form.description, priority: form.priority || null, createPbi: azdo?.enabled ? form.createPbi !== false : undefined });
         toast.success(
-          'Project created',
+          'Work item created',
           azdo?.enabled ? (form.createPbi !== false ? `${form.name} · PBI is being created in the current sprint` : `${form.name} · no PBI yet (create it later from the ⋯ menu)`) : form.name
         );
       }
@@ -135,17 +135,17 @@ export default function Projects() {
   const remove = async (p) => {
     const hasTasks = p.counts.total > 0;
     const msg = hasTasks
-      ? `Delete "${p.name}"?\n\nIt has ${p.counts.total} task(s). Press OK to delete the project and KEEP the tasks (they become "no project"). To delete the tasks too, cancel and use "Delete with tasks".`
+      ? `Delete "${p.name}"?\n\nIt has ${p.counts.total} task(s). Press OK to delete the work item and KEEP the tasks (they become "no work item"). To delete the tasks too, cancel and use "Delete with tasks".`
       : `Delete "${p.name}"?`;
     if (!window.confirm(msg)) return;
     await ProjectsApi.remove(p._id, false);
-    toast.success('Project deleted');
+    toast.success('Work item deleted');
     load();
   };
   const removeWithTasks = async (p) => {
     if (!window.confirm(`Delete "${p.name}" AND its ${p.counts.total} task(s)? This cannot be undone.`)) return;
     await ProjectsApi.remove(p._id, true);
-    toast.success('Project and tasks deleted');
+    toast.success('Work item and tasks deleted');
     load();
   };
 
@@ -177,7 +177,7 @@ export default function Projects() {
         <span className="text-xs text-slate-400 max-lg:hidden">{l.hint}</span>
       </span>
       {l.key !== 'done' && (
-        <button className="btn btn-xs btn-ghost" onClick={() => setForm({ ...blank(), priority: l.key === 'none' ? null : l.key })} title="New project here">
+        <button className="btn btn-xs btn-ghost" onClick={() => setForm({ ...blank(), priority: l.key === 'none' ? null : l.key })} title="New work item here">
           +
         </button>
       )}
@@ -218,10 +218,10 @@ export default function Projects() {
             items={[
               { label: 'Open board', onClick: () => navigate(`/tasks?project=${p._id}`) },
               { label: 'Add task', onClick: () => navigate(`/tasks?project=${p._id}&new=1`) },
-              { label: 'Edit project', onClick: () => setForm({ _id: p._id, name: p.name, description: p.description, priority: p.priority || null, deferred: isDeferred(p), createPbi: false }) },
+              { label: 'Edit work item', onClick: () => setForm({ _id: p._id, name: p.name, description: p.description, priority: p.priority || null, deferred: isDeferred(p), createPbi: false }) },
               ...LANES.filter((x) => x.key !== l.key).map((x) => ({ label: x.key === 'done' ? 'Mark as done' : x.key === 'none' ? 'Remove priority' : `Move to ${x.label}`, onClick: () => moveTo(p, x.key) })),
               ...(azdo?.enabled && isDeferred(p) ? [{ label: 'Create PBI in current sprint', onClick: () => createPbi(p) }] : []),
-              { label: 'Delete project', danger: true, onClick: () => remove(p) },
+              { label: 'Delete work item', danger: true, onClick: () => remove(p) },
               ...(p.counts.total > 0 ? [{ label: 'Delete with all tasks', danger: true, onClick: () => removeWithTasks(p) }] : []),
             ]}
           />
@@ -268,13 +268,13 @@ export default function Projects() {
     <>
       <div className="page-head">
         <div>
-          <h1>Projects</h1>
-          <div className="sub">Priorities P1–P3 as columns — drag a project between them, or into Done when it ships.</div>
+          <h1>Work Items</h1>
+          <div className="sub">Priorities P1–P3 as columns — drag a work item between them, or into Done when it ships.</div>
         </div>
         <div className="page-actions">
-          <input className="input input-sm w-220" type="search" placeholder="Search projects…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input input-sm w-220" type="search" placeholder="Search work items…" value={q} onChange={(e) => setQ(e.target.value)} />
           <button className="btn btn-primary" onClick={() => setForm(blank())}>
-            + New project
+            + New work item
           </button>
         </div>
       </div>
@@ -284,11 +284,11 @@ export default function Projects() {
           <span className="dot" style={{ background: !azdo.enabled ? '#94a3b8' : azdo.connection?.ok ? 'var(--success)' : 'var(--danger)' }} />
           <b>Azure DevOps</b>
           {!azdo.enabled ? (
-            <span className="muted small">Not configured — set AZDO_ORG_URL, AZDO_PROJECT and AZDO_PAT on the server to mirror projects as PBIs and tasks as child Tasks.</span>
+            <span className="muted small">Not configured — set AZDO_ORG_URL, AZDO_PROJECT and AZDO_PAT on the server to mirror work items as PBIs and tasks as child Tasks.</span>
           ) : azdo.connection?.ok ? (
             <>
               <span className="small">
-                Connected to <b>{azdo.connection.projectName}</b> (API {azdo.connection.apiVersion}) · projects → {azdo.pbiType}, tasks → {azdo.taskType}
+                Connected to <b>{azdo.connection.projectName}</b> (API {azdo.connection.apiVersion}) · work items → {azdo.pbiType}, tasks → {azdo.taskType}
                 {azdo.connection.currentSprint && (
                   <>
                     {' '}
@@ -311,7 +311,7 @@ export default function Projects() {
               </span>
               {(azdo.pending.projects > 0 || azdo.pending.tasks > 0) && (
                 <span className="badge badge-soon">
-                  {azdo.pending.projects} projects · {azdo.pending.tasks} tasks pending
+                  {azdo.pending.projects} work items · {azdo.pending.tasks} tasks pending
                 </span>
               )}
               {azdo.connection.warnings?.map((w) => (
@@ -330,12 +330,12 @@ export default function Projects() {
 
       {projects && projects.length === 0 && (
         <div className="card">
-          <Empty icon="📁" text="No projects yet. Create one to start grouping tasks." />
+          <Empty icon="📁" text="No work items yet. Create one to start grouping tasks." />
         </div>
       )}
       {projects && projects.length > 0 && visible.length === 0 && (
         <div className="card">
-          <Empty icon="🔍" text="No projects match." />
+          <Empty icon="🔍" text="No work items match." />
         </div>
       )}
 
@@ -356,7 +356,7 @@ export default function Projects() {
                 {laneHead(l)}
                 <div className="flex flex-col gap-2.5">
                   {byLane[l.key].map((p) => card(p, l))}
-                  {byLane[l.key].length === 0 && <div className="rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400">{isMobile ? `Nothing in ${l.label}` : 'Drop a project here'}</div>}
+                  {byLane[l.key].length === 0 && <div className="rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400">{isMobile ? `Nothing in ${l.label}` : 'Drop a work item here'}</div>}
                 </div>
               </div>
             ))}
@@ -365,7 +365,7 @@ export default function Projects() {
             <div {...laneProps(doneLane)} className={`mt-4 rounded-xl border p-3 transition ${dragOver === 'done' ? 'border-primary-300 bg-primary-100' : `border-slate-200/70 ${doneLane.tint}`}`}>
               {laneHead(doneLane)}
               {byLane.done.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-400">Drop a finished project here</div>
+                <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-400">Drop a finished work item here</div>
               ) : (
                 <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">{byLane.done.map((p) => card(p, doneLane))}</div>
               )}
@@ -376,7 +376,7 @@ export default function Projects() {
 
       {form && (
         <Modal
-          title={form._id ? 'Edit project' : 'New project'}
+          title={form._id ? 'Edit work item' : 'New work item'}
           onClose={() => setForm(null)}
           footer={
             <>
@@ -384,7 +384,7 @@ export default function Projects() {
                 Cancel
               </button>
               <button className="btn btn-primary" onClick={save} disabled={!form.name.trim()}>
-                {form._id ? 'Save changes' : 'Create project'}
+                {form._id ? 'Save changes' : 'Create work item'}
               </button>
             </>
           }
@@ -423,8 +423,8 @@ export default function Projects() {
               </label>
               <div className="mt-1 pl-7 text-xs text-slate-500">
                 {form.createPbi !== false
-                  ? 'Tasks added to this project become child Tasks of the PBI. When the sprint ends the PBI is moved to Done, and the next task gets a fresh PBI in the sprint running then.'
-                  : 'Nothing is created in Azure DevOps. Create it later from the project’s ⋯ menu; tasks of this project are held back from TFS until then.'}
+                  ? 'Tasks added to this work item become child Tasks of the PBI. When the sprint ends the PBI is moved to Done, and the next task gets a fresh PBI in the sprint running then.'
+                  : 'Nothing is created in Azure DevOps. Create it later from the work item’s ⋯ menu; tasks of this work item are held back from TFS until then.'}
               </div>
             </div>
           )}

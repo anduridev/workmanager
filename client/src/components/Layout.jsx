@@ -13,7 +13,7 @@ import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, Cloc
 const NAV = [
   { to: '/', label: 'Dashboard', Icon: HomeIcon, end: true },
   { to: '/today', label: 'Today', Icon: SunIcon },
-  { to: '/projects', label: 'Projects', Icon: FolderIcon },
+  { to: '/projects', label: 'Work Items', Icon: FolderIcon },
   { to: '/tasks', label: 'My Tasks', Icon: CheckSquareIcon },
   { to: '/notes', label: 'Notes', Icon: PenIcon },
   { to: '/team', label: 'Team & Targets', Icon: FlagIcon },
@@ -78,10 +78,10 @@ export default function Layout({ children, user, onLogout }) {
     { icon: <ClockIcon />, label: 'New reminder', onClick: () => navigate('/reminders?new=1') },
     { icon: <PenIcon />, label: 'New note', onClick: () => navigate('/notes?new=1') },
     { icon: <TargetIcon />, label: 'New team target', onClick: () => navigate('/team?new=1') },
-    { icon: <FolderIcon />, label: 'New project', onClick: () => navigate('/projects?new=1') },
+    { icon: <FolderIcon />, label: 'New work item', onClick: () => navigate('/projects?new=1') },
   ];
   const moreItems = [
-    { icon: <FolderIcon />, label: 'Projects', onClick: () => navigate('/projects') },
+    { icon: <FolderIcon />, label: 'Work Items', onClick: () => navigate('/projects') },
     { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
     { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
     ...(!install.standalone

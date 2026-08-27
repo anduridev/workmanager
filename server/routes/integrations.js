@@ -57,7 +57,7 @@ router.post(
     if (!azdo.enabled()) return res.status(400).json({ error: 'Azure DevOps is not configured' });
     // Also the "Create PBI now" action for projects created with "create later"
     const p = await azdo.createPbiNow(req.params.id);
-    if (!p) return res.status(404).json({ error: 'Project not found' });
+    if (!p) return res.status(404).json({ error: 'Work item not found' });
     res.json(p);
   })
 );

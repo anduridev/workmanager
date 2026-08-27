@@ -549,7 +549,7 @@ async function syncTask(taskId) {
       }
       if (parent && !parent.azdo?.id) parent = await syncProject(parent._id);
       else if (parent && !task.azdo?.id) parent = await ensureCurrentPbi(parent); // new task -> needs an open PBI in the current sprint
-      if (parent && !parent.azdo?.id) throw new Error(`Project "${parent.name}" is not synced to Azure DevOps yet (${parent.azdo?.error || 'unknown'})`);
+      if (parent && !parent.azdo?.id) throw new Error(`Work item "${parent.name}" is not synced to Azure DevOps yet (${parent.azdo?.error || 'unknown'})`);
     }
     const parentId = parent?.azdo?.id || null;
     const desiredState = config().stateMap[task.status];

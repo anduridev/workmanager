@@ -39,7 +39,7 @@ router.post(
       if (!defer) azdo.queueProject(project._id);
       res.status(201).json(project);
     } catch (e) {
-      if (e.code === 11000) return res.status(400).json({ error: 'A project with that name already exists' });
+      if (e.code === 11000) return res.status(400).json({ error: 'A work item with that name already exists' });
       throw e;
     }
   })
@@ -49,7 +49,7 @@ router.get(
   '/:id',
   wrap(async (req, res) => {
     const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!project) return res.status(404).json({ error: 'Work item not found' });
     res.json(project);
   })
 );
@@ -62,7 +62,7 @@ router.put(
       if (data.status === 'done') data.doneAt = new Date();
       else if (data.status === 'active') data.doneAt = null;
       const project = await Project.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
-      if (!project) return res.status(404).json({ error: 'Project not found' });
+      if (!project) return res.status(404).json({ error: 'Work item not found' });
       const contentChanged = data.name !== undefined || data.description !== undefined;
       if (!contentChanged && req.body.createPbi !== true) return res.json(project); // board moves (priority/status/order) don't touch Azure DevOps
       if (project.azdo?.deferred && !project.azdo?.id) {
@@ -74,7 +74,7 @@ router.put(
       } else azdo.queueProject(project._id);
       res.json(project);
     } catch (e) {
-      if (e.code === 11000) return res.status(400).json({ error: 'A project with that name already exists' });
+      if (e.code === 11000) return res.status(400).json({ error: 'A work item with that name already exists' });
       throw e;
     }
   })

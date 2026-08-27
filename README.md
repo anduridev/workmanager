@@ -6,8 +6,8 @@ A lightweight, single-user work & team manager for a tech lead / project manager
 | --- | --- |
 | **Dashboard** | Today's list, follow-ups due, overdue/due-soon tasks, in-progress work, team targets this week, recent notes |
 | **Today** | Per-day to-do list with a "main focus", progress bar, carry-over of unfinished items from previous days, 3-week history. Each item can have a **date + time**; you get a reminder **30 min before** (or 10/15/60 min, at the time, or none) |
-| **Projects** | Priority board: columns **P1 / P2 / P3 / Unprioritised** plus a **Done** lane — drag a project between lanes (or use its ⋯ menu; phones get lane chips). Each card shows task counts, progress, PBI/sprint state. Create / edit / delete projects (name + description + priority) "View tasks" filters the board; "+ Task" adds a task straight into the project. Deleting a project keeps its tasks (unlinked) unless you choose "Delete with tasks" |
-| **My Tasks** | Kanban board (drag & drop) or list view. Statuses: To Do / In Progress / On Hold / Done. Priority, **optional project**, tags, due date. Multiple **dated notes** per task and a full status-change history |
+| **Work Items** (projects) | Priority board: columns **P1 / P2 / P3 / Unprioritised** plus a **Done** lane — drag a work item between lanes (or use its ⋯ menu; phones get lane chips). Each card shows task counts, progress, PBI/sprint state. Create / edit / delete work items (name + description + priority) "View tasks" filters the board; "+ Task" adds a task straight into the work item. Deleting a work item keeps its tasks (unlinked) unless you choose "Delete with tasks" |
+| **My Tasks** | Kanban board (drag & drop) or list view. Statuses: To Do / In Progress / On Hold / Done. Priority, **optional work item**, tags, due date. Multiple **dated notes** per task and a full status-change history |
 | **Notes** | Standalone journal — meeting notes, decisions, ideas. Grouped by date, searchable, taggable, pinnable |
 | **Team & Targets** | Team members + targets assigned to them. Each target has a target date, a **follow-up reminder** (once → date & time; daily → time + optional start/until; weekly → weekday + time + optional range), and a dated follow-up log (on track / at risk / blocked) |
 | **Reminders** | Ad-hoc "remind me…" nudges: once (date & time), daily / weekdays (time), weekly (weekday + time), monthly (day + time), each with optional start/until. Snoozing a repeating reminder only delays that occurrence — the schedule is untouched |
@@ -15,6 +15,8 @@ A lightweight, single-user work & team manager for a tech lead / project manager
 | **Expenses** | Personal expense manager: reads bank / card / UPI alert mails from your inbox (IMAP, read-only) and turns them into transactions, plus manual add/edit. Monthly summary by category, merchant and account, 6-month trend, rule-based overspend alerts, and (with your OpenAI key) a written spending review with alerts, tips and suggested budgets |
 
 **Stack:** Node.js + Express + Mongoose (MongoDB) · React 18 + Vite + Tailwind CSS · single deployable service.
+
+**Naming:** the app calls projects **Work Items** in the UI; the API (`/api/projects`), data model and Azure DevOps mapping keep the name *project*.
 
 **Auth:** single user stored in MongoDB (bcrypt password hash), JWT sessions valid for 30 days. Credentials are never kept in env files.
 

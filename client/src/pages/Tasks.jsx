@@ -138,8 +138,8 @@ export default function Tasks() {
         <div className="page-actions">
           <input className="input input-sm w-220" type="search" placeholder="Search tasks & notes…" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="select input-sm w-180" value={project} onChange={(e) => setProject(e.target.value)}>
-            <option value="">All projects</option>
-            <option value="none">No project</option>
+            <option value="">All work items</option>
+            <option value="none">No work item</option>
             {projects.map((p) => (
               <option key={p._id} value={p._id}>
                 {p.name}
@@ -163,7 +163,7 @@ export default function Tasks() {
       {(statusFilter || overdueOnly || project) && (
         <div className="row mb">
           <span className="muted small">Filtered:</span>
-          {project && <span className="badge badge-outline">📁 {project === 'none' ? 'No project' : projectName(project) || '…'}</span>}
+          {project && <span className="badge badge-outline">📁 {project === 'none' ? 'No work item' : projectName(project) || '…'}</span>}
           {statusFilter && <span className="badge badge-outline">status = {statusFilter}</span>}
           {overdueOnly && <span className="badge badge-overdue">overdue only</span>}
           <button className="btn btn-xs btn-ghost" onClick={() => navigate('/tasks')}>
@@ -282,7 +282,7 @@ export default function Tasks() {
                   <th>Task</th>
                   <th>Status</th>
                   <th>Priority</th>
-                  <th>Project</th>
+                  <th>Work Item</th>
                   <th>Due</th>
                   <th>Notes</th>
                   <th>Updated</th>
@@ -389,9 +389,9 @@ export default function Tasks() {
               </select>
             </label>
             <label className="field">
-              Project (optional)
+              Work Item (optional)
               <select className="select" value={form.project || ''} onChange={(e) => setForm({ ...form, project: e.target.value })}>
-                <option value="">— No project —</option>
+                <option value="">— No work item —</option>
                 {projects.map((p) => (
                   <option key={p._id} value={p._id}>
                     {p.name}
