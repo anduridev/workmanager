@@ -157,7 +157,11 @@ async function syncMail({ days, full = false, reimport = false, limit = 200 } = 
       result.fetched += fetched.emails.length;
       result.scanned = Math.max(result.scanned, fetched.scanned);
       result.matched = Math.max(result.matched, fetched.matched);
-      const parsed = await parser.parseMails(fetched.emails);
+      // Mails already imported are not parsed again (saves OpenAI calls on the overlap window / re-syncs)
+      const knownIds = new Set((await Expense.find({ 'email.messageId': { $in: fetched.emails.map((m) => m.messageId) } }).select('email.messageId').lean()).map((d) => d.email.messageId));
+      const fresh = fetched.emails.filter((m) => !knownIds.has(m.messageId));
+      result.duplicates += fetched.emails.length - fresh.length;
+      const parsed = await parser.parseMails(fresh);
       for (const { mail: m, txn, via } of parsed) {
         if (!txn) {
           result.ignored++;
@@ -398,6 +402,59 @@ async function checkAlerts(now = dayjs(), { quiet = false } = {}) {
   return { alerts: out, notified: fresh.length };
 }
 
+// ---------- AI categorisation (cheap: distinct merchants only, not the mails) ----------
+/**
+ * Ask the model for a category per distinct merchant (name + a sample description + typical amount) and apply it
+ * to every row of that merchant that the user has not categorised by hand. ~100 merchants ≈ 3k tokens.
+ */
+async function aiCategorize({ month, onlyOther = false } = {}) {
+  if (!(await ai.enabled())) throw Object.assign(new Error('OpenAI key is not set on the server'), { status: 400 });
+  const filter = { userCategory: { $ne: true } };
+  if (onlyOther) filter.category = 'Other';
+  if (month) {
+    const { start, end } = monthRange(month);
+    filter.date = { $gte: start.toDate(), $lte: end.toDate() };
+  }
+  const rows = await Expense.find(filter).select('merchant description category amount type method email.subject').lean();
+  const groups = new Map();
+  for (const r of rows) {
+    const key = (r.merchant || r.description || '').trim();
+    if (!key) continue;
+    const g = groups.get(key) || { merchant: key, n: 0, total: 0, type: r.type, method: r.method, sample: r.description || r.email?.subject || '', current: r.category };
+    g.n++;
+    g.total += r.amount;
+    groups.set(key, g);
+  }
+  const list = [...groups.values()].sort((a, b) => b.total - a.total);
+  if (!list.length) return { merchants: 0, updated: 0, calls: 0 };
+  const p = await prefs();
+  const system = `You categorise Indian personal-finance counter-parties for an expense tracker (currency ${p.currency}). Given merchant/payee names (mostly UPI payees: shops, restaurants, services, and individual people) return strictly JSON {"items":[{"i":<index>,"category":"<one of: ${CATEGORIES_LIST}>"}]}.
+Guidelines: shop/store/traders/enterprises -> Shopping or Groceries (kirana, supermarket, provisions, fruits, vegetables, milk); pan shop, tea stall, bakery, hotel, restaurant, cafe, mess, tiffin, biryani, food -> Food & Dining; petrol/fuel/gas station -> Fuel; cab/auto/metro/bus/toll/parking -> Transport; pharmacy/clinic/hospital/lab -> Health; salon/spa -> Personal Care; school/college/tuition/academy -> Education; mobile/electricity/water/gas/broadband/recharge -> Bills & Utilities; rent/EMI/loan/society -> Rent & EMI; banks, credit-card bills, wallet loads, own-account and person-to-person transfers (an individual's full name with no business word) -> Transfers; salary/employer credits -> Salary & Income; refunds/cashback credits -> Refunds; if it is genuinely unknowable, keep "Other". Use the sample text and amount pattern as hints. Same index i for each item.`;
+  let updated = 0;
+  let calls = 0;
+  for (let i = 0; i < list.length; i += 60) {
+    const batch = list.slice(i, i + 60);
+    const items = batch.map((g, j) => ({ i: j, merchant: g.merchant, type: g.type, method: g.method, count: g.n, avg: Math.round(g.total / g.n), sample: String(g.sample).slice(0, 80) }));
+    let out;
+    try {
+      out = await ai.chat({ system: system.replace('CATEGORIES_LIST', Expense.CATEGORIES.join(' | ')), user: JSON.stringify({ items }), json: true, maxTokens: 30 * batch.length + 100, temperature: 0 });
+      calls++;
+    } catch (e) {
+      console.warn('[expenses] AI categorise failed:', e.message);
+      throw e;
+    }
+    for (const it of out.items || []) {
+      const g = batch[Number(it.i)];
+      const category = Expense.CATEGORIES.includes(it.category) ? it.category : null;
+      if (!g || !category || category === g.current) continue;
+      const r = await Expense.updateMany({ ...filter, $or: [{ merchant: g.merchant }, { merchant: '', description: g.merchant }] }, { $set: { category, 'ai.category': category, 'ai.via': 'ai-categorize' } });
+      updated += r.modifiedCount || 0;
+    }
+  }
+  return { merchants: list.length, updated, calls };
+}
+const CATEGORIES_LIST = 'CATEGORIES_LIST';
+
 // ---------- AI insights ----------
 async function insightStats() {
   const now = dayjs();
@@ -527,4 +584,4 @@ async function processExpenses(now) {
   }
 }
 
-module.exports = { publicSettings, saveSettings, testMail, syncMail, scanPreview, summary, monthlyTotals, checkAlerts, generateInsights, getInsights, insightStats, processExpenses, prefs, fmtMoney };
+module.exports = { publicSettings, saveSettings, testMail, syncMail, scanPreview, aiCategorize, summary, monthlyTotals, checkAlerts, generateInsights, getInsights, insightStats, processExpenses, prefs, fmtMoney };

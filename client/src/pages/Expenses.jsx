@@ -134,7 +134,7 @@ export default function Expenses() {
   const sync = async (full = false) => {
     setSyncing(true);
     try {
-      const r = await Api.sync(full ? { full: true, days: 90 } : {});
+      const r = await Api.sync(full ? { full: true, days: 30 } : {});
       toast.success(
         r.added ? `${r.added} new transaction${r.added === 1 ? '' : 's'} added` : 'Mailbox up to date',
         `${r.fetched} alert mail${r.fetched === 1 ? '' : 's'} read · ${r.duplicates} already known · ${r.ignored} not transactions${r.ai ? ` · ${r.ai} parsed by AI` : ''}`
@@ -158,6 +158,20 @@ export default function Expenses() {
       toast.error('Scan failed', e.message);
     } finally {
       setPreviewing(false);
+    }
+  };
+
+  const [categorizing, setCategorizing] = useState(false);
+  const categorize = async (onlyOther) => {
+    setCategorizing(true);
+    try {
+      const r = await Api.aiCategorize({ month, onlyOther });
+      toast.success(`${r.updated} transaction${r.updated === 1 ? '' : 's'} re-categorised`, `${r.merchants} merchants reviewed by AI in ${r.calls} call${r.calls === 1 ? '' : 's'}`);
+      load();
+    } catch (e) {
+      toast.error('AI categorisation failed', e.message);
+    } finally {
+      setCategorizing(false);
     }
   };
 
@@ -258,7 +272,8 @@ export default function Expenses() {
             items={[
               { icon: <SettingsIcon size={16} />, label: 'Settings (mailbox, AI, alerts)', onClick: () => setShowSettings(true) },
               { icon: <SparkIcon size={16} />, label: 'Regenerate AI insights', onClick: generate },
-              ...(mailReady ? [{ icon: <MailIcon size={16} />, label: 'Full re-scan (last 90 days)', onClick: () => sync(true) }] : []),
+              { icon: <SparkIcon size={16} />, label: 'Fix categories with AI', onClick: () => categorize(false) },
+              ...(mailReady ? [{ icon: <MailIcon size={16} />, label: 'Re-import last 30 days', onClick: () => sync(true) }] : []),
             ]}
           />
         </div>
@@ -312,11 +327,18 @@ export default function Expenses() {
                   </span>
                   Where it went
                 </h3>
-                {filter.category && (
-                  <button className="btn btn-xs btn-ghost" onClick={() => setFilter({ ...filter, category: '' })}>
-                    Clear filter ✕
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {summary.uncategorized > 0 && (
+                    <button className="btn btn-xs" onClick={() => categorize(true)} disabled={categorizing} title="Sends only the merchant names to OpenAI (a fraction of a cent)">
+                      <SparkIcon size={13} /> {categorizing ? 'Categorising…' : `Categorise ${summary.uncategorized} with AI`}
+                    </button>
+                  )}
+                  {filter.category && (
+                    <button className="btn btn-xs btn-ghost" onClick={() => setFilter({ ...filter, category: '' })}>
+                      Clear filter ✕
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="card-body tight">
                 <ul className="grid gap-2 md:grid-cols-2">

@@ -11,8 +11,9 @@ const MODELS = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o', 'gpt-5-mini'
 async function settings() {
   const s = (await Setting.get('expense.openai')) || {};
   const stored = decrypt(s.keyEnc);
-  const key = stored || (process.env.OPENAI_API_KEY || '').trim();
-  return { key, model: s.model || process.env.OPENAI_MODEL || DEFAULT_MODEL, fromEnv: !stored && Boolean(process.env.OPENAI_API_KEY) };
+  const envKey = (process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY || process.env.OPENAI_KEY || '').trim();
+  const key = stored || envKey;
+  return { key, model: s.model || process.env.OPENAI_MODEL || DEFAULT_MODEL, fromEnv: !stored && Boolean(envKey) };
 }
 
 async function enabled() {

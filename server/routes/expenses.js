@@ -131,6 +131,14 @@ router.post(
   })
 );
 
+// One cheap OpenAI pass over the distinct merchants -> categories (rows you categorised by hand are untouched)
+router.post(
+  '/ai-categorize',
+  wrap(async (req, res) => {
+    res.json(await expenses.aiCategorize({ month: req.body?.month, onlyOther: req.body?.onlyOther === true }));
+  })
+);
+
 router.get(
   '/insights',
   wrap(async (req, res) => {
