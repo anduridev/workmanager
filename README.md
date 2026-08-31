@@ -12,6 +12,7 @@ A lightweight, single-user work & team manager for a tech lead / project manager
 | **Team & Targets** | Team members + targets assigned to them. Each target has a target date, a **follow-up reminder** (once → date & time; daily → time + optional start/until; weekly → weekday + time + optional range), and a dated follow-up log (on track / at risk / blocked) |
 | **Reminders** | Ad-hoc "remind me…" nudges: once (date & time), daily / weekdays (time), weekly (weekday + time), monthly (day + time), each with optional start/until. Snoozing a repeating reminder only delays that occurrence — the schedule is untouched |
 | **Notifications** | A server-side scheduler fires reminders as in-app toasts + bell badge + browser notifications (with a short beep). Snooze from the bell |
+| **Telegram** | Client support inbox on your support Telegram account: clients list with linked groups + unread badges, group chat with reply (sent as you), create-task-from-message |
 | **Zendesk** | Client support view: tickets per client (organization), inline status + assignee updates, and per-client SLA — applicable policies with targets plus live breached / at-risk tickets |
 | **Expenses** | Personal expense manager: reads bank / card / UPI alert mails from your inbox (IMAP, read-only) and turns them into transactions, plus manual add/edit. Monthly summary by category, merchant and account, 6-month trend, rule-based overspend alerts, and (with your OpenAI key) a written spending review with alerts, tips and suggested budgets |
 
@@ -162,6 +163,16 @@ A **Zendesk** section (Tickets · SLA Policies · SLA Report) for client support
 **Restricted accounts:** `node server/scripts/createUser.js <username> <password> [display name] --role=zendesk` creates a login that can only use the Zendesk screen. The API enforces it server-side (everything except `/api/zendesk` and `/api/auth` returns 403); such accounts see only Zendesk-kind notifications and no push/digest.
 
 API: `/api/zendesk/status`, `/orgs`, `/agents`, `/tickets` (`?org=&status=&q=`), `PUT /tickets/:id` (`{status, assigneeId}`), `/sla?org=`.
+
+## Telegram support inbox (optional)
+
+A **Telegram** screen that turns client groups into a support inbox, using **your support Telegram account** (MTProto, not a bot) — replies appear in the group from that account. Env: `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` (my.telegram.org → API development tools); then sign in once in the app (phone → login code → 2FA password if set). The session is AES-encrypted in MongoDB.
+
+- **Clients first** — a list you manage (Paybitz, Global Bridge, …); each client links to one of the account's Telegram groups (searchable picker). Unread badge + last message on every client.
+- **Chat** — pick a client to read the group (sender names, day separators, reply-quotes, attachment placeholders) and reply from the composer (Enter sends). Opening a chat marks it read; the view auto-refreshes every 8s.
+- **Extras** — quote-reply to a specific message, one-click **Create WorkPA task** from a message, "Open in Telegram" for public groups, unlink/relink groups anytime.
+
+API: `/api/telegram/status`, `/login/start`, `/login/complete`, `/logout`, `/clients` (CRUD), `/dialogs`, `/messages` (GET `?chat=`, POST `{chat,text,replyTo}`). `TELEGRAM_MOCK=1` swaps in an offline fake for local testing.
 
 ## Design system (Tailwind)
 The client is styled with **Tailwind CSS v3** (`client/tailwind.config.js`, PostCSS). `client/src/styles.css` holds a small `@layer components` vocabulary (`btn`, `input`, `card`, `badge-*`, `chip`, `segmented`, overlays, phone sheet) built with `@apply`; pages compose everything else from utilities. Palette: slate neutrals + `primary` (indigo) with a `bg-brand` indigo→violet gradient for the active nav item, primary buttons, dashboard hero and FAB; typeface Plus Jakarta Sans; borderless soft-shadow cards; secondary actions live in a ⋯ menu (`components/Menu.jsx`). Sizing follows platform norms: 36–40px controls on desktop, 44–48px touch targets and 16px inputs on phones (`max-md:` variants), `md` (768px) is the phone/desktop breakpoint, 256px sidebar, 64px header, 56px tab bar + safe-area. Icons are inline SVG (`components/icons.jsx`). Note: avoid class names that collide with Tailwind utilities (e.g. `list-item`, `container`).

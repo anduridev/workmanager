@@ -10,6 +10,7 @@ import Projects from './pages/Projects';
 import ZdTickets from './pages/zendesk/Tickets';
 import ZdPolicies from './pages/zendesk/Policies';
 import ZdReport from './pages/zendesk/Report';
+import Telegram from './pages/Telegram';
 import Today from './pages/Today';
 import Notes from './pages/Notes';
 import Team from './pages/Team';
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/zendesk/tickets" element={<ZdTickets />} />
           <Route path="/zendesk/sla-policies" element={<ZdPolicies />} />
           <Route path="/zendesk/sla-report" element={<ZdReport />} />
+          <Route path="/telegram" element={<Telegram />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/:id" element={<Tasks />} />
           <Route path="/notes" element={<Notes />} />

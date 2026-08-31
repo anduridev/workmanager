@@ -147,6 +147,20 @@ export const Zendesk = {
   policies: () => api.get('/zendesk/policies'),
 };
 
+export const Telegram = {
+  status: () => api.get('/telegram/status'),
+  loginStart: (phone) => api.post('/telegram/login/start', { phone }),
+  loginComplete: (code, password) => api.post('/telegram/login/complete', { code, password }),
+  logout: () => api.post('/telegram/logout'),
+  clients: () => api.get('/telegram/clients'),
+  addClient: (name) => api.post('/telegram/clients', { name }),
+  updateClient: (id, data) => api.put(`/telegram/clients/${id}`, data),
+  removeClient: (id) => api.delete(`/telegram/clients/${id}`),
+  dialogs: () => api.get('/telegram/dialogs'),
+  messages: (chat, params) => api.get('/telegram/messages', { params: { chat, ...params } }),
+  send: (chat, text, replyTo) => api.post('/telegram/messages', { chat, text, replyTo }),
+};
+
 export const Dashboard = {
   get: () => api.get('/dashboard'),
 };

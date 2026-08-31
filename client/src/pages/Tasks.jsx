@@ -71,7 +71,7 @@ export default function Tasks() {
   useEffect(() => {
     if (params.get('new')) {
       const pid = params.get('project');
-      setForm({ ...blank(), project: pid && pid !== 'none' ? pid : '' });
+      setForm({ ...blank(), project: pid && pid !== 'none' ? pid : '', title: params.get('title') || '' });
       const next = new URLSearchParams(params);
       next.delete('new');
       setParams(next, { replace: true });

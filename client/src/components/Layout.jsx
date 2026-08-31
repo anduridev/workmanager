@@ -8,7 +8,7 @@ import NotificationBell from './NotificationBell';
 import Modal, { Sheet } from './Modal';
 import { useNotifications } from './useNotifications';
 import { useToast } from './Toast';
-import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon, LifebuoyIcon, ShieldIcon, TrendIcon } from './icons';
+import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon, LifebuoyIcon, ShieldIcon, TrendIcon, PlaneIcon } from './icons';
 
 const NAV = [
   { to: '/', label: 'Dashboard', Icon: HomeIcon, end: true },
@@ -27,6 +27,7 @@ const NAV = [
       { to: '/zendesk/sla-report', label: 'SLA Report' },
     ],
   },
+  { to: '/telegram', label: 'Telegram', Icon: PlaneIcon },
   // Expenses is hidden from navigation for now (still reachable at /expenses, password-locked)
 ];
 // Phone bottom bar: the four most-used screens + "More" for the rest
@@ -36,7 +37,7 @@ const TABS = [
   { to: '/tasks', label: 'Tasks', Icon: CheckSquareIcon },
   { to: '/team', label: 'Team', Icon: FlagIcon },
 ];
-const MORE_PATHS = ['/projects', '/notes', '/reminders', '/zendesk', '/expenses'];
+const MORE_PATHS = ['/projects', '/notes', '/reminders', '/zendesk', '/telegram', '/expenses'];
 
 const Badge = ({ n, className = '' }) =>
   n > 0 ? <span className={`grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white ${className}`}>{n}</span> : null;
@@ -108,6 +109,7 @@ export default function Layout({ children, user, onLogout }) {
           { icon: <LifebuoyIcon />, label: 'Zendesk tickets', onClick: () => navigate('/zendesk/tickets') },
           { icon: <ShieldIcon />, label: 'SLA policies', onClick: () => navigate('/zendesk/sla-policies') },
           { icon: <TrendIcon />, label: 'SLA report', onClick: () => navigate('/zendesk/sla-report') },
+          { icon: <PlaneIcon />, label: 'Telegram', onClick: () => navigate('/telegram') },
         ]),
     ...(!install.standalone
       ? [{ icon: <DownloadIcon />, label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]

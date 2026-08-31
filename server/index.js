@@ -36,6 +36,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/zendesk', require('./routes/zendesk'));
+app.use('/api/telegram', require('./routes/telegram'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/expenses', require('./routes/expenses'));
 

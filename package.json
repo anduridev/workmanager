@@ -27,6 +27,7 @@
     "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.9.16",
     "mongoose": "^8.9.5",
+    "telegram": "^2.26.22",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
