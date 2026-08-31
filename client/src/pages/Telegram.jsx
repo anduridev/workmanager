@@ -244,7 +244,7 @@ TELEGRAM_API_HASH = ...`}</pre>
     );
 
   const clientList = (
-    <div className={`card !p-0 ${isMobile ? '' : 'w-[320px] shrink-0'}`}>
+    <div className={`card !p-0 ${isMobile ? '' : 'flex h-full w-[320px] shrink-0 flex-col'}`}>
       <div className="border-b border-slate-100 p-3">
         <div className="row gap-2">
           <input className="input input-sm grow" placeholder="Add client (e.g. Paybitz)…" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addClient()} />
@@ -255,7 +255,7 @@ TELEGRAM_API_HASH = ...`}</pre>
       </div>
       {clients === null && <div className="muted p-4 text-[13px]">Loading clients…</div>}
       {clients !== null && clients.length === 0 && <div className="p-4"><Empty icon="👥" text="No clients yet — add Paybitz, Global Bridge, …" /></div>}
-      <div className="flex flex-col">
+      <div className={`flex flex-col ${isMobile ? '' : 'min-h-0 flex-1 overflow-y-auto'}`}>
         {(clients || []).map((c) => (
           <div key={c._id} className={`flex cursor-pointer items-center gap-3 border-b border-slate-50 px-3 py-2.5 hover:bg-slate-50 ${selectedId === c._id ? 'bg-primary-50/60' : ''}`} onClick={() => pick(c)}>
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-bold text-white">{c.name.slice(0, 1).toUpperCase()}</span>
@@ -287,7 +287,7 @@ TELEGRAM_API_HASH = ...`}</pre>
   );
 
   const chat = selected && (
-    <div className="card flex min-h-[60vh] flex-1 flex-col !p-0">
+    <div className={isMobile ? 'fixed inset-0 z-50 flex flex-col bg-white pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]' : 'card flex h-full min-h-0 flex-1 flex-col !p-0'}>
       <div className="row items-center gap-2 border-b border-slate-100 px-4 py-2.5">
         {isMobile && (
           <button className="btn btn-xs" onClick={() => pick(null)}>
@@ -327,7 +327,7 @@ TELEGRAM_API_HASH = ...`}</pre>
 
       {selected.chatId && (
         <>
-          <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {messages === null && <div className="muted text-[13px]">Loading messages…</div>}
             {messages !== null && messages.length === 0 && <Empty icon="💬" text="No messages yet." />}
             {(messages || []).map((m, i) => {
@@ -439,10 +439,10 @@ TELEGRAM_API_HASH = ...`}</pre>
       )}
 
       {status?.signedIn && (
-        <div className={isMobile ? '' : 'flex items-start gap-4'}>
+        <div className={isMobile ? '' : 'flex items-stretch gap-4'} style={isMobile ? undefined : { height: 'calc(100dvh - 248px)', minHeight: 360 }}>
           {(!isMobile || !selected) && clientList}
           {(!isMobile || selected) && (chat || (!isMobile && (
-            <div className="card grid min-h-[60vh] flex-1 place-items-center">
+            <div className="card grid h-full flex-1 place-items-center">
               <Empty icon="💬" text="Pick a client on the left to open its group chat." />
             </div>
           )))}
