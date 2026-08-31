@@ -2,13 +2,16 @@ const router = require('express').Router();
 const Notification = require('../models/Notification');
 const wrap = require('../middleware/asyncHandler');
 
+// Restricted (zendesk-role) accounts only ever see Zendesk notifications — nothing else leaks to them
+const scope = (req) => (req.user?.role === 'zendesk' ? { kind: 'zendesk' } : {});
+
 // GET /api/notifications?unread=true  (latest 50)
 router.get(
   '/',
   wrap(async (req, res) => {
-    const filter = req.query.unread === 'true' ? { read: false } : {};
+    const filter = { ...scope(req), ...(req.query.unread === 'true' ? { read: false } : {}) };
     const items = await Notification.find(filter).sort({ createdAt: -1 }).limit(50);
-    const unreadCount = await Notification.countDocuments({ read: false });
+    const unreadCount = await Notification.countDocuments({ ...scope(req), read: false });
     // Undelivered = not yet pushed to the browser; mark them delivered on fetch
     const undelivered = items.filter((n) => !n.delivered).map((n) => n._id);
     if (undelivered.length) await Notification.updateMany({ _id: { $in: undelivered } }, { delivered: true });
@@ -16,7 +19,8 @@ router.get(
   })
 );
 
-// Preview / send the morning digest now
+// Preview / send the morning digest now (admin only)
+router.use('/digest', (req, res, next) => (req.user?.role === 'zendesk' ? res.status(403).json({ error: 'Not available for this account' }) : next()));
 router.get(
   '/digest',
   wrap(async (req, res) => {
@@ -35,7 +39,7 @@ router.post(
 router.patch(
   '/read-all',
   wrap(async (req, res) => {
-    await Notification.updateMany({ read: false }, { read: true });
+    await Notification.updateMany({ ...scope(req), read: false }, { read: true });
     res.json({ ok: true });
   })
 );
@@ -43,7 +47,7 @@ router.patch(
 router.patch(
   '/:id/read',
   wrap(async (req, res) => {
-    const n = await Notification.findByIdAndUpdate(req.params.id, { read: true }, { new: true });
+    const n = await Notification.findOneAndUpdate({ _id: req.params.id, ...scope(req) }, { read: true }, { new: true });
     res.json(n);
   })
 );
@@ -51,7 +55,7 @@ router.patch(
 router.delete(
   '/:id',
   wrap(async (req, res) => {
-    await Notification.findByIdAndDelete(req.params.id);
+    await Notification.findOneAndDelete({ _id: req.params.id, ...scope(req) });
     res.json({ ok: true });
   })
 );
@@ -59,7 +63,7 @@ router.delete(
 router.delete(
   '/',
   wrap(async (req, res) => {
-    await Notification.deleteMany({ read: true });
+    await Notification.deleteMany({ ...scope(req), read: true });
     res.json({ ok: true });
   })
 );

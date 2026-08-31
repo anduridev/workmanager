@@ -14,7 +14,7 @@ export default function Login({ onLogin, hasUser }) {
     try {
       const res = await Auth.login(username, password);
       setToken(res.token);
-      onLogin({ username: res.username, displayName: res.displayName });
+      onLogin({ username: res.username, displayName: res.displayName, role: res.role });
     } catch (err) {
       setError(err.message);
     } finally {

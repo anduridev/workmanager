@@ -40,6 +40,8 @@ export default function App() {
     setAuth((a) => ({ ...a, loggedIn: false, user: null }));
   };
 
+  const zdOnly = auth.user?.role === 'zendesk'; // restricted account: Zendesk screen only
+
   if (auth.loading) return <div className="splash">Loading…</div>;
   if (!auth.loggedIn) return <Login hasUser={auth.hasUser} onLogin={(user) => setAuth((a) => ({ ...a, loggedIn: true, user }))} />;
 
@@ -47,6 +49,14 @@ export default function App() {
     <ToastProvider>
       <Layout user={auth.user} onLogout={logout}>
         <Routes>
+          {zdOnly && (
+            <>
+              <Route path="/zendesk" element={<Zendesk />} />
+              <Route path="*" element={<Navigate to="/zendesk" replace />} />
+            </>
+          )}
+          {!zdOnly && (
+            <>
           <Route path="/" element={<Dashboard />} />
           <Route path="/today" element={<Today />} />
           <Route path="/projects" element={<Projects />} />
@@ -59,6 +69,8 @@ export default function App() {
           <Route path="/reminders" element={<Reminders />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
         </Routes>
       </Layout>
     </ToastProvider>

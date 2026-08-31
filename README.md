@@ -158,6 +158,8 @@ A **Zendesk** screen for client support work, configured only by env vars (`ZEND
 - **Update from WorkPA** — change status and assignee inline (agents + admins listed); closed tickets are read-only, exactly as in Zendesk.
 - **SLA per client** — the policies that apply to the selected client with their targets, plus the live state of its open tickets: breached SLAs and ones breaching within 4h, with countdown chips per ticket.
 
+**Restricted accounts:** `node server/scripts/createUser.js <username> <password> [display name] --role=zendesk` creates a login that can only use the Zendesk screen. The API enforces it server-side (everything except `/api/zendesk` and `/api/auth` returns 403); such accounts see only Zendesk-kind notifications and no push/digest.
+
 API: `/api/zendesk/status`, `/orgs`, `/agents`, `/tickets` (`?org=&status=&q=`), `PUT /tickets/:id` (`{status, assigneeId}`), `/sla?org=`.
 
 ## Design system (Tailwind)

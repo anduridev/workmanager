@@ -4,11 +4,11 @@ import { fromNow } from '../lib/date';
 import { Targets, Reminders, Notifications, Push } from '../lib/api';
 import { useToast } from './Toast';
 import Modal from './Modal';
-import { BellIcon, DownloadIcon, FlagIcon, CheckSquareIcon, ClockIcon, SunIcon, WalletIcon } from './icons';
+import { BellIcon, DownloadIcon, FlagIcon, CheckSquareIcon, ClockIcon, SunIcon, WalletIcon, LifebuoyIcon } from './icons';
 
-const ICON = { target: <FlagIcon size={16} />, task: <CheckSquareIcon size={16} />, reminder: <ClockIcon size={16} />, todo: <SunIcon size={16} />, expense: <WalletIcon size={16} />, system: 'ℹ' };
+const ICON = { target: <FlagIcon size={16} />, task: <CheckSquareIcon size={16} />, reminder: <ClockIcon size={16} />, todo: <SunIcon size={16} />, expense: <WalletIcon size={16} />, zendesk: <LifebuoyIcon size={16} />, system: 'ℹ' };
 
-export default function NotificationBell({ notif, onInstallHelp, standalone }) {
+export default function NotificationBell({ notif, onInstallHelp, standalone, hidePush = false }) {
   const [open, setOpen] = useState(false);
   const [digest, setDigest] = useState(null);
   const ref = useRef(null);
@@ -89,6 +89,7 @@ export default function NotificationBell({ notif, onInstallHelp, standalone }) {
               </button>
             </div>
           </div>
+          {!hidePush && (
           <div className={`flex gap-3 border-b border-slate-200 px-4 py-3 ${notif.push.enabled ? 'bg-emerald-50/60' : 'bg-amber-50/60'}`}>
             <span className="mt-0.5 text-base">{notif.push.enabled ? '📲' : '🔕'}</span>
             <div className="min-w-0 flex-1">
@@ -128,6 +129,7 @@ export default function NotificationBell({ notif, onInstallHelp, standalone }) {
               </div>
             </div>
           </div>
+          )}
           {permission === 'default' && !notif.push.supported && (
             <div className="flex gap-3 border-b border-slate-200 bg-amber-50/60 px-4 py-3">
               <span className="text-base">🔔</span>

@@ -69,6 +69,9 @@ export default function Layout({ children, user, onLogout }) {
     setBannerHidden(true);
   };
 
+  const zdOnly = user?.role === 'zendesk'; // restricted account: only the Zendesk screen and account actions
+  const nav = zdOnly ? NAV.filter((n) => n.to === '/zendesk') : NAV;
+  const tabs = zdOnly ? [{ to: '/zendesk', label: 'Zendesk', Icon: LifebuoyIcon }] : TABS;
   const showBanner = isMobile && !install.standalone && !bannerHidden;
   const moreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
   const name = user?.displayName || user?.username || '';
@@ -82,10 +85,14 @@ export default function Layout({ children, user, onLogout }) {
     { icon: <FolderIcon />, label: 'New work item', onClick: () => navigate('/projects?new=1') },
   ];
   const moreItems = [
-    { icon: <FolderIcon />, label: 'Work Items', onClick: () => navigate('/projects') },
-    { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
-    { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
-    { icon: <LifebuoyIcon />, label: 'Zendesk', onClick: () => navigate('/zendesk') },
+    ...(zdOnly
+      ? []
+      : [
+          { icon: <FolderIcon />, label: 'Work Items', onClick: () => navigate('/projects') },
+          { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
+          { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
+          { icon: <LifebuoyIcon />, label: 'Zendesk', onClick: () => navigate('/zendesk') },
+        ]),
     ...(!install.standalone
       ? [{ icon: <DownloadIcon />, label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]
       : []),
@@ -107,7 +114,7 @@ export default function Layout({ children, user, onLogout }) {
           </div>
         </div>
         <nav className="flex flex-col gap-0.5">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -165,13 +172,17 @@ export default function Layout({ children, user, onLogout }) {
             {dayjs().format('DD MMMM YYYY')}
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn btn-sm hidden md:inline-flex" onClick={() => navigate('/tasks?new=1')}>
-              <PlusIcon size={15} /> Task
-            </button>
-            <button className="btn btn-sm hidden md:inline-flex" onClick={() => navigate('/reminders?new=1')}>
-              <PlusIcon size={15} /> Reminder
-            </button>
-            <NotificationBell notif={notif} onInstallHelp={() => setHowTo(true)} standalone={install.standalone} />
+            {!zdOnly && (
+              <>
+                <button className="btn btn-sm hidden md:inline-flex" onClick={() => navigate('/tasks?new=1')}>
+                  <PlusIcon size={15} /> Task
+                </button>
+                <button className="btn btn-sm hidden md:inline-flex" onClick={() => navigate('/reminders?new=1')}>
+                  <PlusIcon size={15} /> Reminder
+                </button>
+              </>
+            )}
+            <NotificationBell notif={notif} onInstallHelp={() => setHowTo(true)} standalone={install.standalone} hidePush={zdOnly} />
           </div>
         </header>
 
@@ -199,7 +210,7 @@ export default function Layout({ children, user, onLogout }) {
 
       {/* ---------- Phone navigation ---------- */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Main">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
@@ -229,14 +240,16 @@ export default function Layout({ children, user, onLogout }) {
           {!location.pathname.startsWith('/reminders') && <Badge n={notif.unreadCount} className="absolute left-[calc(50%+8px)] top-1.5 border-2 border-white" />}
         </button>
       </nav>
-      <button
-        className="fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-glow transition active:scale-95 md:hidden"
-        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
-        onClick={() => setSheet('add')}
-        aria-label="Add"
-      >
-        <PlusIcon size={28} />
-      </button>
+      {!zdOnly && (
+        <button
+          className="fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-glow transition active:scale-95 md:hidden"
+          style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+          onClick={() => setSheet('add')}
+          aria-label="Add"
+        >
+          <PlusIcon size={28} />
+        </button>
+      )}
 
       {sheet === 'add' && <Sheet title="Add…" items={addItems} onClose={() => setSheet(null)} />}
       {sheet === 'more' && <Sheet title={`Signed in as ${name}`} items={moreItems} onClose={() => setSheet(null)} />}

@@ -20,6 +20,11 @@ app.use('/api/expenses', require('./routes/expensesPublic')); // Google OAuth ca
 
 // Protected API
 app.use('/api', requireAuth);
+// Restricted accounts: role 'zendesk' can only use the Zendesk screen (their own /api/auth endpoints are mounted above)
+app.use('/api', (req, res, next) => {
+  if ((req.user?.role || 'admin') !== 'admin' && !req.path.startsWith('/zendesk') && !req.path.startsWith('/notifications')) return res.status(403).json({ error: 'Your account only has access to Zendesk' });
+  next();
+});
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/notes', require('./routes/notes'));

@@ -22,7 +22,7 @@ router.post(
     }
     user.lastLoginAt = new Date();
     await user.save();
-    res.json({ token: signToken(user), username: user.username, displayName: user.displayName });
+    res.json({ token: signToken(user), username: user.username, displayName: user.displayName, role: user.role || 'admin' });
   })
 );
 
@@ -30,7 +30,7 @@ router.get(
   '/me',
   requireAuth,
   wrap(async (req, res) => {
-    const user = await User.findById(req.user.sub).select('username displayName lastLoginAt');
+    const user = await User.findById(req.user.sub).select('username displayName role lastLoginAt');
     if (!user) return res.status(401).json({ error: 'User no longer exists' });
     res.json(user);
   })

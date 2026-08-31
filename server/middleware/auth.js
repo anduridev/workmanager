@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 function signToken(user) {
-  return jwt.sign({ sub: String(user._id), username: user.username }, SECRET, { expiresIn: '30d' });
+  return jwt.sign({ sub: String(user._id), username: user.username, role: user.role || 'admin' }, SECRET, { expiresIn: '30d' });
 }
 
 function requireAuth(req, res, next) {
