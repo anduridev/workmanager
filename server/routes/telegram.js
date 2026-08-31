@@ -6,13 +6,17 @@ const TelegramLink = require('../models/TelegramLink');
 router.get(
   '/status',
   wrap(async (req, res) => {
-    res.json(await tg.status());
+    // canManage: only the admin may sign the shared support account in/out
+    res.json({ ...(await tg.status()), canManage: (req.user?.role || 'admin') === 'admin' });
   })
 );
+
+const adminOnly = (req, res, next) => ((req.user?.role || 'admin') === 'admin' ? next() : res.status(403).json({ error: 'Only the admin can sign the support account in or out' }));
 
 // Sign in as the support account: phone -> code (-> 2FA password)
 router.post(
   '/login/start',
+  adminOnly,
   wrap(async (req, res) => {
     const phone = String(req.body?.phone || '').trim();
     if (!phone) return res.status(400).json({ error: 'Phone number (with country code) is required' });
@@ -25,6 +29,7 @@ router.post(
 );
 router.post(
   '/login/complete',
+  adminOnly,
   wrap(async (req, res) => {
     try {
       res.json(await tg.loginComplete({ code: req.body?.code, password: req.body?.password }));
@@ -36,6 +41,7 @@ router.post(
 );
 router.post(
   '/logout',
+  adminOnly,
   wrap(async (req, res) => {
     res.json(await tg.logout());
   })

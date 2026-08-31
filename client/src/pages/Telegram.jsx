@@ -422,14 +422,21 @@ TELEGRAM_API_HASH = ...`}</pre>
             <button className="btn btn-sm" onClick={() => { loadClients(); loadMessages(); }}>
               <RefreshIcon /> Refresh
             </button>
-            <button className="btn btn-sm btn-ghost" onClick={async () => { await Api.logout(); loadStatus(); }}>
-              Sign out of Telegram
-            </button>
+            {status.canManage && (
+              <button className="btn btn-sm btn-ghost" onClick={async () => { await Api.logout(); loadStatus(); }}>
+                Sign out of Telegram
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {status && status.configured && !status.signedIn && <SignIn status={status} onDone={loadStatus} />}
+      {status && status.configured && !status.signedIn && status.canManage && <SignIn status={status} onDone={loadStatus} />}
+      {status && status.configured && !status.signedIn && !status.canManage && (
+        <div className="card mx-auto max-w-md text-center">
+          <Empty icon="🔐" text="The support Telegram account is not signed in yet — ask the admin to sign in once from this screen." />
+        </div>
+      )}
 
       {status?.signedIn && (
         <div className={isMobile ? '' : 'flex items-start gap-4'}>

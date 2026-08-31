@@ -160,7 +160,7 @@ A **Zendesk** section (Tickets · SLA Policies · SLA Report) for client support
 - **SLA Report** — client dropdown; live per-client view: breached / at-risk tickets with countdowns, status mix, open tickets sorted by SLA deadline, applicable policies.
 - **SLA Policies** — read-only list of every policy with conditions, per-priority targets and an auto-written plain-English explanation (plus what each metric means).
 
-**Restricted accounts:** `node server/scripts/createUser.js <username> <password> [display name] --role=zendesk` creates a login that can only use the Zendesk screen. The API enforces it server-side (everything except `/api/zendesk` and `/api/auth` returns 403); such accounts see only Zendesk-kind notifications and no push/digest.
+**Restricted accounts:** `node server/scripts/createUser.js <username> <password> [display name] --role=zendesk` creates a login that can only use the Zendesk screen. The API enforces it server-side (everything except `/api/zendesk` and `/api/auth` returns 403); such accounts see only Zendesk-kind notifications and no push/digest. They also get the Telegram support inbox (read/reply/link groups), but only the admin can sign the shared support account in or out.
 
 API: `/api/zendesk/status`, `/orgs`, `/agents`, `/tickets` (`?org=&status=&q=`), `PUT /tickets/:id` (`{status, assigneeId}`), `/sla?org=`.
 

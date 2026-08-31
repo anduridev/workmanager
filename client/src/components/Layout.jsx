@@ -79,12 +79,13 @@ export default function Layout({ children, user, onLogout }) {
   };
 
   const zdOnly = user?.role === 'zendesk'; // restricted account: only the Zendesk screen and account actions
-  const nav = zdOnly ? NAV.filter((n) => n.children) : NAV;
+  const nav = zdOnly ? NAV.filter((n) => n.children || n.to === '/telegram') : NAV; // support role: Zendesk group + Telegram
   const tabs = zdOnly
     ? [
         { to: '/zendesk/tickets', label: 'Tickets', Icon: LifebuoyIcon },
         { to: '/zendesk/sla-policies', label: 'Policies', Icon: ShieldIcon },
         { to: '/zendesk/sla-report', label: 'Report', Icon: TrendIcon },
+        { to: '/telegram', label: 'Telegram', Icon: PlaneIcon },
       ]
     : TABS;
   const showBanner = isMobile && !install.standalone && !bannerHidden;

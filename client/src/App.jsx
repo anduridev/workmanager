@@ -57,6 +57,7 @@ export default function App() {
               <Route path="/zendesk/tickets" element={<ZdTickets />} />
               <Route path="/zendesk/sla-policies" element={<ZdPolicies />} />
               <Route path="/zendesk/sla-report" element={<ZdReport />} />
+              <Route path="/telegram" element={<Telegram />} />
               <Route path="*" element={<Navigate to="/zendesk/tickets" replace />} />
             </>
           )}
