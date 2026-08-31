@@ -82,6 +82,13 @@ export const ClockIcon = I(
     <path d="M12 7v5l3 2" />
   </>
 );
+export const LifebuoyIcon = I(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="4" />
+    <path d="m5.6 5.6 3.5 3.5m5.8 5.8 3.5 3.5m0-12.8-3.5 3.5m-5.8 5.8-3.5 3.5" />
+  </>
+);
 export const SearchIcon = I(
   <>
     <circle cx="11" cy="11" r="7" />

@@ -12,6 +12,7 @@ A lightweight, single-user work & team manager for a tech lead / project manager
 | **Team & Targets** | Team members + targets assigned to them. Each target has a target date, a **follow-up reminder** (once → date & time; daily → time + optional start/until; weekly → weekday + time + optional range), and a dated follow-up log (on track / at risk / blocked) |
 | **Reminders** | Ad-hoc "remind me…" nudges: once (date & time), daily / weekdays (time), weekly (weekday + time), monthly (day + time), each with optional start/until. Snoozing a repeating reminder only delays that occurrence — the schedule is untouched |
 | **Notifications** | A server-side scheduler fires reminders as in-app toasts + bell badge + browser notifications (with a short beep). Snooze from the bell |
+| **Zendesk** | Client support view: tickets per client (organization), inline status + assignee updates, and per-client SLA — applicable policies with targets plus live breached / at-risk tickets |
 | **Expenses** | Personal expense manager: reads bank / card / UPI alert mails from your inbox (IMAP, read-only) and turns them into transactions, plus manual add/edit. Monthly summary by category, merchant and account, 6-month trend, rule-based overspend alerts, and (with your OpenAI key) a written spending review with alerts, tips and suggested budgets |
 
 **Stack:** Node.js + Express + Mongoose (MongoDB) · React 18 + Vite + Tailwind CSS · single deployable service.
@@ -148,6 +149,16 @@ Duplicates are skipped by e-mail `Message-ID` and by a fingerprint (type + amoun
 **AI insights** — *Regenerate AI insights* (or automatically every Monday morning) sends aggregated statistics (monthly totals per category, last-90-day patterns, top / recurring merchants, largest payments — never raw mails) to OpenAI and shows a spending-health score, a summary, alerts, concrete tips and suggested monthly budgets. The weekly review is posted as a notification.
 
 Manual entries: **Add expense** (also in the phone's + sheet). Any transaction can be edited, re-categorised inline, excluded from totals (e.g. transfers to your own account) or deleted.
+
+## Zendesk (optional)
+
+A **Zendesk** screen for client support work, configured only by env vars (`ZENDESK_SUBDOMAIN`, `ZENDESK_EMAIL`, `ZENDESK_API_TOKEN`):
+
+- **Tickets by client** — pick a client (Zendesk organization) or all; filter by status (Unsolved / New / Open / Pending / On hold / Solved), search, open any ticket in the Zendesk agent view.
+- **Update from WorkPA** — change status and assignee inline (agents + admins listed); closed tickets are read-only, exactly as in Zendesk.
+- **SLA per client** — the policies that apply to the selected client with their targets, plus the live state of its open tickets: breached SLAs and ones breaching within 4h, with countdown chips per ticket.
+
+API: `/api/zendesk/status`, `/orgs`, `/agents`, `/tickets` (`?org=&status=&q=`), `PUT /tickets/:id` (`{status, assigneeId}`), `/sla?org=`.
 
 ## Design system (Tailwind)
 The client is styled with **Tailwind CSS v3** (`client/tailwind.config.js`, PostCSS). `client/src/styles.css` holds a small `@layer components` vocabulary (`btn`, `input`, `card`, `badge-*`, `chip`, `segmented`, overlays, phone sheet) built with `@apply`; pages compose everything else from utilities. Palette: slate neutrals + `primary` (indigo) with a `bg-brand` indigo→violet gradient for the active nav item, primary buttons, dashboard hero and FAB; typeface Plus Jakarta Sans; borderless soft-shadow cards; secondary actions live in a ⋯ menu (`components/Menu.jsx`). Sizing follows platform norms: 36–40px controls on desktop, 44–48px touch targets and 16px inputs on phones (`max-md:` variants), `md` (768px) is the phone/desktop breakpoint, 256px sidebar, 64px header, 56px tab bar + safe-area. Icons are inline SVG (`components/icons.jsx`). Note: avoid class names that collide with Tailwind utilities (e.g. `list-item`, `container`).

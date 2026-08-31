@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
 import Projects from './pages/Projects';
+import Zendesk from './pages/Zendesk';
 import Today from './pages/Today';
 import Notes from './pages/Notes';
 import Team from './pages/Team';
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/today" element={<Today />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/zendesk" element={<Zendesk />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/:id" element={<Tasks />} />
           <Route path="/notes" element={<Notes />} />

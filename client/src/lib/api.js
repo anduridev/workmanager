@@ -137,6 +137,15 @@ export const Integrations = {
   azdoSyncTask: (id) => api.post(`/integrations/azdo/sync/task/${id}`),
 };
 
+export const Zendesk = {
+  status: () => api.get('/zendesk/status'),
+  orgs: () => api.get('/zendesk/orgs'),
+  agents: () => api.get('/zendesk/agents'),
+  tickets: (params) => api.get('/zendesk/tickets', { params }),
+  update: (id, data) => api.put(`/zendesk/tickets/${id}`, data),
+  sla: (org) => api.get('/zendesk/sla', { params: org ? { org } : {} }),
+};
+
 export const Dashboard = {
   get: () => api.get('/dashboard'),
 };

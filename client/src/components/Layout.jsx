@@ -8,7 +8,7 @@ import NotificationBell from './NotificationBell';
 import Modal, { Sheet } from './Modal';
 import { useNotifications } from './useNotifications';
 import { useToast } from './Toast';
-import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon } from './icons';
+import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon, LifebuoyIcon } from './icons';
 
 const NAV = [
   { to: '/', label: 'Dashboard', Icon: HomeIcon, end: true },
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/notes', label: 'Notes', Icon: PenIcon },
   { to: '/team', label: 'Team & Targets', Icon: FlagIcon },
   { to: '/reminders', label: 'Reminders', Icon: ClockIcon },
+  { to: '/zendesk', label: 'Zendesk', Icon: LifebuoyIcon },
   // Expenses is hidden from navigation for now (still reachable at /expenses, password-locked)
 ];
 // Phone bottom bar: the four most-used screens + "More" for the rest
@@ -27,7 +28,7 @@ const TABS = [
   { to: '/tasks', label: 'Tasks', Icon: CheckSquareIcon },
   { to: '/team', label: 'Team', Icon: FlagIcon },
 ];
-const MORE_PATHS = ['/projects', '/notes', '/reminders', '/expenses'];
+const MORE_PATHS = ['/projects', '/notes', '/reminders', '/zendesk', '/expenses'];
 
 const Badge = ({ n, className = '' }) =>
   n > 0 ? <span className={`grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white ${className}`}>{n}</span> : null;
@@ -84,6 +85,7 @@ export default function Layout({ children, user, onLogout }) {
     { icon: <FolderIcon />, label: 'Work Items', onClick: () => navigate('/projects') },
     { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
     { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
+    { icon: <LifebuoyIcon />, label: 'Zendesk', onClick: () => navigate('/zendesk') },
     ...(!install.standalone
       ? [{ icon: <DownloadIcon />, label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]
       : []),
