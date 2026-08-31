@@ -7,7 +7,9 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
 import Projects from './pages/Projects';
-import Zendesk from './pages/Zendesk';
+import ZdTickets from './pages/zendesk/Tickets';
+import ZdPolicies from './pages/zendesk/Policies';
+import ZdReport from './pages/zendesk/Report';
 import Today from './pages/Today';
 import Notes from './pages/Notes';
 import Team from './pages/Team';
@@ -51,8 +53,10 @@ export default function App() {
         <Routes>
           {zdOnly && (
             <>
-              <Route path="/zendesk" element={<Zendesk />} />
-              <Route path="*" element={<Navigate to="/zendesk" replace />} />
+              <Route path="/zendesk/tickets" element={<ZdTickets />} />
+              <Route path="/zendesk/sla-policies" element={<ZdPolicies />} />
+              <Route path="/zendesk/sla-report" element={<ZdReport />} />
+              <Route path="*" element={<Navigate to="/zendesk/tickets" replace />} />
             </>
           )}
           {!zdOnly && (
@@ -60,7 +64,10 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/today" element={<Today />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/zendesk" element={<Zendesk />} />
+          <Route path="/zendesk" element={<Navigate to="/zendesk/tickets" replace />} />
+          <Route path="/zendesk/tickets" element={<ZdTickets />} />
+          <Route path="/zendesk/sla-policies" element={<ZdPolicies />} />
+          <Route path="/zendesk/sla-report" element={<ZdReport />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/:id" element={<Tasks />} />
           <Route path="/notes" element={<Notes />} />

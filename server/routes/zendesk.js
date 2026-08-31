@@ -63,6 +63,14 @@ router.put(
   })
 );
 
+// All SLA policies (read-only screen)
+router.get(
+  '/policies',
+  wrap(async (req, res) => {
+    res.json(await zd.slaPolicies());
+  })
+);
+
 // SLA view for a client: matching policies + live breach state of its open tickets. ?org=<id> (omit = all clients)
 router.get(
   '/sla',

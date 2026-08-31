@@ -152,11 +152,12 @@ Manual entries: **Add expense** (also in the phone's + sheet). Any transaction c
 
 ## Zendesk (optional)
 
-A **Zendesk** screen for client support work, configured only by env vars (`ZENDESK_SUBDOMAIN`, `ZENDESK_EMAIL`, `ZENDESK_API_TOKEN`):
+A **Zendesk** section (Tickets · SLA Policies · SLA Report) for client support work, configured only by env vars (`ZENDESK_SUBDOMAIN`, `ZENDESK_EMAIL`, `ZENDESK_API_TOKEN`):
 
-- **Tickets by client** — pick a client (Zendesk organization) or all; filter by status (Unsolved / New / Open / Pending / On hold / Solved), search, open any ticket in the Zendesk agent view.
+- **Tickets** — pick a client (Zendesk organization) or all; filter by status (Unsolved / New / Open / Pending / On hold / Solved), search, open any ticket in the Zendesk agent view.
 - **Update from WorkPA** — change status and assignee inline (agents + admins listed); closed tickets are read-only, exactly as in Zendesk.
-- **SLA per client** — the policies that apply to the selected client with their targets, plus the live state of its open tickets: breached SLAs and ones breaching within 4h, with countdown chips per ticket.
+- **SLA Report** — client dropdown; live per-client view: breached / at-risk tickets with countdowns, status mix, open tickets sorted by SLA deadline, applicable policies.
+- **SLA Policies** — read-only list of every policy with conditions, per-priority targets and an auto-written plain-English explanation (plus what each metric means).
 
 **Restricted accounts:** `node server/scripts/createUser.js <username> <password> [display name] --role=zendesk` creates a login that can only use the Zendesk screen. The API enforces it server-side (everything except `/api/zendesk` and `/api/auth` returns 403); such accounts see only Zendesk-kind notifications and no push/digest.
 

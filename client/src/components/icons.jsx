@@ -89,6 +89,7 @@ export const LifebuoyIcon = I(
     <path d="m5.6 5.6 3.5 3.5m5.8 5.8 3.5 3.5m0-12.8-3.5 3.5m-5.8 5.8-3.5 3.5" />
   </>
 );
+export const ShieldIcon = I(<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />);
 export const SearchIcon = I(
   <>
     <circle cx="11" cy="11" r="7" />

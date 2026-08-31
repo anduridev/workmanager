@@ -144,6 +144,7 @@ export const Zendesk = {
   tickets: (params) => api.get('/zendesk/tickets', { params }),
   update: (id, data) => api.put(`/zendesk/tickets/${id}`, data),
   sla: (org) => api.get('/zendesk/sla', { params: org ? { org } : {} }),
+  policies: () => api.get('/zendesk/policies'),
 };
 
 export const Dashboard = {

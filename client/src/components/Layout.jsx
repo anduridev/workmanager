@@ -8,7 +8,7 @@ import NotificationBell from './NotificationBell';
 import Modal, { Sheet } from './Modal';
 import { useNotifications } from './useNotifications';
 import { useToast } from './Toast';
-import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon, LifebuoyIcon } from './icons';
+import { HomeIcon, SunIcon, FolderIcon, CheckSquareIcon, PenIcon, FlagIcon, ClockIcon, MenuIcon, PlusIcon, TargetIcon, KeyIcon, LogOutIcon, DownloadIcon, LifebuoyIcon, ShieldIcon, TrendIcon } from './icons';
 
 const NAV = [
   { to: '/', label: 'Dashboard', Icon: HomeIcon, end: true },
@@ -18,7 +18,15 @@ const NAV = [
   { to: '/notes', label: 'Notes', Icon: PenIcon },
   { to: '/team', label: 'Team & Targets', Icon: FlagIcon },
   { to: '/reminders', label: 'Reminders', Icon: ClockIcon },
-  { to: '/zendesk', label: 'Zendesk', Icon: LifebuoyIcon },
+  {
+    label: 'Zendesk',
+    Icon: LifebuoyIcon,
+    children: [
+      { to: '/zendesk/tickets', label: 'Tickets' },
+      { to: '/zendesk/sla-policies', label: 'SLA Policies' },
+      { to: '/zendesk/sla-report', label: 'SLA Report' },
+    ],
+  },
   // Expenses is hidden from navigation for now (still reachable at /expenses, password-locked)
 ];
 // Phone bottom bar: the four most-used screens + "More" for the rest
@@ -70,8 +78,14 @@ export default function Layout({ children, user, onLogout }) {
   };
 
   const zdOnly = user?.role === 'zendesk'; // restricted account: only the Zendesk screen and account actions
-  const nav = zdOnly ? NAV.filter((n) => n.to === '/zendesk') : NAV;
-  const tabs = zdOnly ? [{ to: '/zendesk', label: 'Zendesk', Icon: LifebuoyIcon }] : TABS;
+  const nav = zdOnly ? NAV.filter((n) => n.children) : NAV;
+  const tabs = zdOnly
+    ? [
+        { to: '/zendesk/tickets', label: 'Tickets', Icon: LifebuoyIcon },
+        { to: '/zendesk/sla-policies', label: 'Policies', Icon: ShieldIcon },
+        { to: '/zendesk/sla-report', label: 'Report', Icon: TrendIcon },
+      ]
+    : TABS;
   const showBanner = isMobile && !install.standalone && !bannerHidden;
   const moreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
   const name = user?.displayName || user?.username || '';
@@ -91,7 +105,9 @@ export default function Layout({ children, user, onLogout }) {
           { icon: <FolderIcon />, label: 'Work Items', onClick: () => navigate('/projects') },
           { icon: <PenIcon />, label: 'Notes', onClick: () => navigate('/notes') },
           { icon: <ClockIcon />, label: 'Reminders', onClick: () => navigate('/reminders'), badge: notif.unreadCount || 0 },
-          { icon: <LifebuoyIcon />, label: 'Zendesk', onClick: () => navigate('/zendesk') },
+          { icon: <LifebuoyIcon />, label: 'Zendesk tickets', onClick: () => navigate('/zendesk/tickets') },
+          { icon: <ShieldIcon />, label: 'SLA policies', onClick: () => navigate('/zendesk/sla-policies') },
+          { icon: <TrendIcon />, label: 'SLA report', onClick: () => navigate('/zendesk/sla-report') },
         ]),
     ...(!install.standalone
       ? [{ icon: <DownloadIcon />, label: 'Add to home screen', hint: 'Install WorkPA as an app — opens full screen, gets push notifications', onClick: doInstall }]
@@ -114,26 +130,47 @@ export default function Layout({ children, user, onLogout }) {
           </div>
         </div>
         <nav className="flex flex-col gap-0.5">
-          {nav.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              className={({ isActive }) =>
-                `group flex h-10 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition ${
-                  isActive ? 'bg-brand text-white shadow-glow' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-card'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <n.Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary-600'} />
-                  <span>{n.label}</span>
-                  {n.to === '/reminders' && <Badge n={notif.unreadCount} className="ml-auto" />}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {nav.map((n) =>
+            n.children ? (
+              <div key={n.label} className="mt-1">
+                <div className="flex h-8 items-center gap-3 px-3.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  <n.Icon size={15} /> {n.label}
+                </div>
+                {n.children.map((c) => (
+                  <NavLink
+                    key={c.to}
+                    to={c.to}
+                    className={({ isActive }) =>
+                      `group flex h-9 items-center rounded-xl py-0 pl-[42px] pr-3.5 text-[13px] font-medium transition ${
+                        isActive ? 'bg-brand text-white shadow-glow' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-card'
+                      }`
+                    }
+                  >
+                    {c.label}
+                  </NavLink>
+                ))}
+              </div>
+            ) : (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.end}
+                className={({ isActive }) =>
+                  `group flex h-10 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition ${
+                    isActive ? 'bg-brand text-white shadow-glow' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-card'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <n.Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary-600'} />
+                    <span>{n.label}</span>
+                    {n.to === '/reminders' && <Badge n={notif.unreadCount} className="ml-auto" />}
+                  </>
+                )}
+              </NavLink>
+            )
+          )}
         </nav>
         <div className="mt-auto flex flex-col gap-0.5 border-t border-slate-200 pt-4">
           <div className="mb-2 flex items-center gap-3 px-2">
