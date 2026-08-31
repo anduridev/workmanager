@@ -10,7 +10,10 @@ import { useIsMobile } from '../lib/useMedia';
 const STATUSES = ['todo', 'inprogress', 'hold', 'done'];
 const PRIO_BAR = { low: 'border-l-slate-300', medium: 'border-l-cyan-400', high: 'border-l-amber-400', urgent: 'border-l-red-500' };
 const COL_TINT = { todo: 'bg-slate-100', inprogress: 'bg-primary-50', hold: 'bg-amber-50', done: 'bg-emerald-50' };
-const blank = () => ({ title: '', description: '', status: 'todo', priority: 'medium', project: '', tags: '', dueDate: '' });
+const blank = () => ({ title: '', description: '', status: 'todo', priority: 'medium', project: '', extPbi: null, tags: '', dueDate: '' });
+
+/** "⧉ title" chip text when the task is attached to an existing sprint PBI (instead of a work item). */
+const extPbiLabel = (t) => (!t.project?.name && t.azdo?.extParentId ? `⧉ ${t.azdo.extParentTitle || `PBI #${t.azdo.extParentId}`}` : null);
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
@@ -54,8 +57,13 @@ export default function Tasks() {
     const t = setTimeout(load, q ? 250 : 0);
     return () => clearTimeout(t);
   }, [load]);
+  const [sprintPbis, setSprintPbis] = useState([]);
   useEffect(() => {
     ProjectsApi.list().then(setProjects);
+    // Open PBIs in the current sprint (empty when Azure DevOps is not configured)
+    Integrations.azdoSprintPbis()
+      .then((r) => setSprintPbis(r?.pbis || []))
+      .catch(() => setSprintPbis([]));
   }, []);
   useEffect(() => {
     localStorage.setItem('workpa_taskview', view);
@@ -222,6 +230,7 @@ export default function Tasks() {
                       <div className="foot">
                         <span className={`prio prio-${t.priority}`} title={PRIORITY_LABEL[t.priority]} />
                         {t.project?.name && <span>📁 {t.project.name}</span>}
+                        {extPbiLabel(t) && <span className="truncate" style={{ maxWidth: 140 }}>{extPbiLabel(t)}</span>}
                         {t.dueDate && (
                           <span className={isPast(dayjs(t.dueDate).endOf('day')) && s !== 'done' ? 'badge badge-overdue' : ''}>{dueLabel(t.dueDate)}</span>
                         )}
@@ -257,6 +266,7 @@ export default function Tasks() {
                     <div className="meta">
                       <PriorityBadge priority={t.priority} />
                       {t.project?.name && <span>📁 {t.project.name}</span>}
+                      {extPbiLabel(t) && <span>{extPbiLabel(t)}</span>}
                       {t.dueDate && (
                         <span className={isPast(dayjs(t.dueDate).endOf('day')) && t.status !== 'done' ? 'badge badge-overdue' : ''}>{dueLabel(t.dueDate)}</span>
                       )}
@@ -313,7 +323,7 @@ export default function Tasks() {
                     <td>
                       <PriorityBadge priority={t.priority} />
                     </td>
-                    <td className="muted">{t.project?.name || '—'}</td>
+                    <td className="muted">{t.project?.name || extPbiLabel(t) || '—'}</td>
                     <td>
                       {t.dueDate ? (
                         <span className={isPast(dayjs(t.dueDate).endOf('day')) && t.status !== 'done' ? 'badge badge-overdue' : ''}>{fmtDate(t.dueDate, 'DD MMM')}</span>
@@ -337,7 +347,13 @@ export default function Tasks() {
           onClose={() => navigate('/tasks')}
           onChange={load}
           onEdit={() =>
-            setForm({ ...selected, project: selected.project?._id || '', tags: (selected.tags || []).join(', '), dueDate: toDateInput(selected.dueDate) })
+            setForm({
+              ...selected,
+              project: selected.project?._id || '',
+              extPbi: selected.azdo?.extParentId ? { id: selected.azdo.extParentId, title: selected.azdo.extParentTitle || '' } : null,
+              tags: (selected.tags || []).join(', '),
+              dueDate: toDateInput(selected.dueDate),
+            })
           }
           onDelete={() => remove(selected)}
           setStatus={setStatus}
@@ -390,13 +406,42 @@ export default function Tasks() {
             </label>
             <label className="field">
               Work Item (optional)
-              <select className="select" value={form.project || ''} onChange={(e) => setForm({ ...form, project: e.target.value })}>
+              <select
+                className="select"
+                value={form.extPbi ? `pbi:${form.extPbi.id}` : form.project || ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v.startsWith('pbi:')) {
+                    const id = Number(v.slice(4));
+                    const b = sprintPbis.find((x) => x.id === id);
+                    setForm({ ...form, project: '', extPbi: { id, title: b?.title || form.extPbi?.title || '' } });
+                  } else setForm({ ...form, project: v, extPbi: null });
+                }}
+              >
                 <option value="">— No work item —</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name}
-                  </option>
-                ))}
+                {projects.length > 0 && (
+                  <optgroup label="Work Items">
+                    {projects.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {(sprintPbis.length > 0 || form.extPbi) && (
+                  <optgroup label="Current sprint PBIs (Azure DevOps)">
+                    {form.extPbi && !sprintPbis.some((b) => b.id === form.extPbi.id) && (
+                      <option value={`pbi:${form.extPbi.id}`}>
+                        #{form.extPbi.id} · {form.extPbi.title || 'PBI'}
+                      </option>
+                    )}
+                    {sprintPbis.map((b) => (
+                      <option key={b.id} value={`pbi:${b.id}`}>
+                        #{b.id} · {b.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </label>
             <label className="field">
@@ -448,6 +493,7 @@ function TaskDrawer({ task, onClose, onChange, onEdit, onDelete, setStatus }) {
             <StatusBadge status={task.status} />
             <PriorityBadge priority={task.priority} />
             {task.project?.name && <span className="badge badge-outline">📁 {task.project.name}</span>}
+            {extPbiLabel(task) && <span className="badge badge-outline">{extPbiLabel(task)}</span>}
             <AzdoBadge
               azdo={task.azdo}
               onRetry={async () => {

@@ -73,4 +73,17 @@ router.post(
   })
 );
 
+// Open PBIs in the current sprint (to attach a task to an existing PBI)
+router.get(
+  '/azdo/sprint-pbis',
+  wrap(async (req, res) => {
+    if (!azdo.enabled()) return res.json({ enabled: false, sprint: null, pbis: [] });
+    try {
+      res.json(await azdo.listSprintPbis());
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  })
+);
+
 module.exports = router;

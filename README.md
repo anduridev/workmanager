@@ -115,6 +115,10 @@ Sync happens in the background right after each save — creates **and every lat
 - **Sprint end**: when the sprint a PBI lives in finishes, the scheduler moves the PBI to `AZDO_PBI_DONE_STATE` (default `Done`) within a few minutes. This happens once; if you reopen it in TFS it is left alone.
 - **Next task after that** (or after the PBI was closed in TFS): a fresh PBI is created in the sprint running now, the previous one is kept in the project's history (`+1 earlier PBI` on the card) and, with `AZDO_CARRY_OVER_OPEN_TASKS=true` (default), the project's still-open tasks are re-parented under the new PBI and moved to the current sprint. Done tasks stay under the old PBI.
 
+### Attach a task to an existing sprint PBI
+
+When creating (or editing) a task, the **Work Item** dropdown also lists the **open PBIs of the current sprint** pulled from Azure DevOps. Pick one and the ADO task is created as a child of that existing PBI instead of a WorkPA work item. WorkPA never closes or rolls over a PBI linked this way - it belongs to your team backlog; only the task itself is synced (state, title, notes, ...). Endpoint: GET /integrations/azdo/sprint-pbis.
+
 ### Two-way: changes made in TFS come back
 Every 5 minutes (and on **Sync now**) WorkPA reads all linked work items and applies remote changes:
 - state → task status (*Done* → done, *In Progress* → inprogress, *To Do* → todo, or hold when the `On Hold` tag is present), with a status-history entry marked "from TFS" and a notification ("TFS: <task> → Done · changed by Ravi")
@@ -192,4 +196,4 @@ client/
 
 ## API (all under `/api`, bearer token required except `/auth/*` and `/health`)
 
-`/projects` · `/tasks?project=<id|none>` `/tasks/:id/notes` `/tasks/:id/status` · `/notes` · `/daily?date=` `/daily/:date/items` `/daily/:date/carryover` · `/members` · `/targets` `/targets/:id/followups` `/targets/:id/snooze` · `/reminders` `/reminders/:id/snooze` · `/notifications` · `/dashboard` · `/expenses` (`?month=`), `/expenses/summary`, `/expenses/meta`, `/expenses/settings` (+ `/test-mail`, `/test-ai`), `/expenses/sync`, `/expenses/insights` · `/integrations/azdo/sync/project/:id` (also creates a deferred PBI), `/integrations/azdo/close-ended-sprints`
+`/projects` · `/tasks?project=<id|none>` `/tasks/:id/notes` `/tasks/:id/status` · `/notes` · `/daily?date=` `/daily/:date/items` `/daily/:date/carryover` · `/members` · `/targets` `/targets/:id/followups` `/targets/:id/snooze` · `/reminders` `/reminders/:id/snooze` · `/notifications` · `/dashboard` · `/expenses` (`?month=`), `/expenses/summary`, `/expenses/meta`, `/expenses/settings` (+ `/test-mail`, `/test-ai`), `/expenses/sync`, `/expenses/insights` · `/integrations/azdo/sync/project/:id` (also creates a deferred PBI), `/integrations/azdo/close-ended-sprints, /integrations/azdo/sprint-pbis`

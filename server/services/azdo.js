@@ -237,6 +237,32 @@ function pbiClosed(project) {
   return Boolean(st && (st === config().pbiDoneState || CLOSED_STATES.includes(st)));
 }
 
+let sprintPbiCache = { at: 0, key: '', value: null };
+
+/** Open PBIs in the sprint covering today — for "attach this task to an existing PBI". Cached 60s. */
+async function listSprintPbis() {
+  if (!enabled()) return { enabled: false, sprint: null, pbis: [] };
+  const c = config();
+  const sprint = await iterationFor(new Date());
+  if (!sprint) return { enabled: true, sprint: null, pbis: [] };
+  const key = `${c.orgUrl}|${c.project}|${sprint}|${c.pbiType}`;
+  if (sprintPbiCache.key === key && Date.now() - sprintPbiCache.at < 60 * 1000) return sprintPbiCache.value;
+  const q = await request('POST', `${projectUrl()}/_apis/wit/wiql`, {
+    query: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject]='${c.project.replace(/'/g, "''")}' AND [System.IterationPath]='${sprint.replace(/'/g, "''")}' AND [System.WorkItemType]='${c.pbiType.replace(/'/g, "''")}' ORDER BY [Microsoft.VSTS.Common.BacklogPriority] ASC`,
+  });
+  const ids = (q.workItems || []).map((w) => w.id).slice(0, 100);
+  let pbis = [];
+  if (ids.length) {
+    const d = await request('GET', `${c.orgUrl}/_apis/wit/workitems?ids=${ids.join(',')}&fields=${encodeURIComponent('System.Id,System.Title,System.State')}`);
+    pbis = (d.value || [])
+      .filter((wi) => { const st = wi.fields?.['System.State']; return !CLOSED_STATES.includes(st) && st !== c.pbiDoneState; })
+      .map((wi) => ({ id: wi.id, title: wi.fields?.['System.Title'] || `#${wi.id}`, state: wi.fields?.['System.State'] || '', url: workItemHtmlUrl(wi.id) }));
+  }
+  const value = { enabled: true, sprint, pbis };
+  sprintPbiCache = { at: Date.now(), key, value };
+  return value;
+}
+
 /** True when the project's current PBI belongs to a sprint that has already finished. */
 async function pbiSprintEnded(project, now = dayjs()) {
   const sp = await sprintByPath(project.azdo?.iterationPath);
@@ -533,7 +559,7 @@ async function syncTask(taskId) {
   const Project = require('../models/Project');
   const task = await Task.findById(taskId);
   if (!task) return null;
-  if (!task.project && !config().syncOrphans && !task.azdo?.id) return task;
+  if (!task.project && !task.azdo?.extParentId && !config().syncOrphans && !task.azdo?.id) return task;
   try {
     let parent = null;
     if (task.project) {
@@ -550,6 +576,11 @@ async function syncTask(taskId) {
       if (parent && !parent.azdo?.id) parent = await syncProject(parent._id);
       else if (parent && !task.azdo?.id) parent = await ensureCurrentPbi(parent); // new task -> needs an open PBI in the current sprint
       if (parent && !parent.azdo?.id) throw new Error(`Work item "${parent.name}" is not synced to Azure DevOps yet (${parent.azdo?.error || 'unknown'})`);
+    } else if (task.azdo?.extParentId) {
+      // Attached to an existing sprint PBI: parent under it as-is (WorkPA never closes or rolls over that PBI)
+      const pbi = await getWorkItem(task.azdo.extParentId);
+      task.set('azdo.extParentTitle', pbi.fields?.['System.Title'] || task.azdo.extParentTitle);
+      parent = { azdo: { id: pbi.id, apiUrl: pbi.url } };
     }
     const parentId = parent?.azdo?.id || null;
     const desiredState = config().stateMap[task.status];
@@ -770,6 +801,7 @@ module.exports = {
   getIterations,
   iterationFor,
   sprintByPath,
+  listSprintPbis,
   pbiClosed,
   closePbi,
   ensureCurrentPbi,

@@ -132,6 +132,7 @@ export const Integrations = {
   azdo: () => api.get('/integrations/azdo'),
   azdoSyncAll: (force) => api.post('/integrations/azdo/sync-all', { force }),
   azdoPull: () => api.post('/integrations/azdo/pull'),
+  azdoSprintPbis: () => api.get('/integrations/azdo/sprint-pbis'),
   azdoSyncProject: (id) => api.post(`/integrations/azdo/sync/project/${id}`),
   azdoSyncTask: (id) => api.post(`/integrations/azdo/sync/task/${id}`),
 };

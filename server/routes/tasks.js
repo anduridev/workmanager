@@ -39,6 +39,8 @@ router.post(
   '/',
   wrap(async (req, res) => {
     const body = pick(req.body);
+    const ext = extPbi(req.body);
+    if (ext) Object.assign(body, { project: null, azdo: { extParentId: ext.id, extParentTitle: ext.title } });
     const task = await Task.create({ ...body, statusHistory: [{ from: null, to: body.status || 'todo' }] });
     await task.populate(POPULATE);
     azdo.queueTask(task._id);
@@ -64,6 +66,15 @@ router.put(
     if (body.status && body.status !== task.status) applyStatus(task, body.status);
     delete body.status;
     Object.assign(task, body);
+    const ext = extPbi(req.body);
+    if (ext) {
+      task.project = null;
+      task.set('azdo.extParentId', ext.id);
+      task.set('azdo.extParentTitle', ext.title);
+    } else if (ext === null || body.project) {
+      task.set('azdo.extParentId', undefined);
+      task.set('azdo.extParentTitle', undefined);
+    }
     await task.save();
     await task.populate(POPULATE);
     azdo.queueTask(task._id);
@@ -157,6 +168,13 @@ function pick(body) {
   }
   if (typeof out.tags === 'string') out.tags = out.tags.split(',').map((t) => t.trim()).filter(Boolean);
   return out;
+}
+
+/** body.extPbi: undefined = leave as is, null = unlink, { id, title } = attach to that existing sprint PBI. */
+function extPbi(body) {
+  if (body.extPbi === undefined) return undefined;
+  const id = Number(body.extPbi?.id);
+  return id > 0 ? { id, title: String(body.extPbi.title || '').slice(0, 300) } : null;
 }
 
 function escapeRegex(s) {

@@ -33,6 +33,8 @@ const TaskSchema = new mongoose.Schema(
       url: String,
       apiUrl: String,
       parentId: Number, // PBI id it is currently parented under
+      extParentId: Number, // linked straight to an existing sprint PBI (instead of a WorkPA work item)
+      extParentTitle: String,
       state: String,
       iterationPath: String,
       assignedTo: String,
