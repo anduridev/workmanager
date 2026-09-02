@@ -169,7 +169,7 @@ API: `/api/zendesk/status`, `/orgs`, `/agents`, `/tickets` (`?org=&status=&q=`),
 A **Telegram** screen that turns client groups into a support inbox, using **your support Telegram account** (MTProto, not a bot) — replies appear in the group from that account. Env: `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` (my.telegram.org → API development tools); then sign in once in the app (phone → login code → 2FA password if set). The session is AES-encrypted in MongoDB.
 
 - **Clients first** — a list you manage (Paybitz, Global Bridge, …); each client links to one of the account's Telegram groups (searchable picker). Unread badge + last message on every client.
-- **Chat** — pick a client to read the group (sender names, day separators, reply-quotes, attachment placeholders) and reply from the composer (Enter sends). Opening a chat marks it read; the view auto-refreshes every 8s.
+- **Chat** — pick a client to read the group (sender names, day separators, reply-quotes, media shown inline - photos/images, voice/audio/video players, other files as named download chips (files over 20 MB: open in Telegram)) and reply from the composer (Enter sends). Opening a chat marks it read; the view auto-refreshes every 8s.
 - **Extras** — quote-reply to a specific message, one-click **Create WorkPA task** from a message, "Open in Telegram" for public groups, unlink/relink groups anytime.
 
 API: `/api/telegram/status`, `/login/start`, `/login/complete`, `/logout`, `/clients` (CRUD), `/dialogs`, `/messages` (GET `?chat=`, POST `{chat,text,replyTo}`). `TELEGRAM_MOCK=1` swaps in an offline fake for local testing.

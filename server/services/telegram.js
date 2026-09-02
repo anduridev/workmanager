@@ -167,11 +167,59 @@ if (process.env.TELEGRAM_MOCK === '1') {
         text: m.message || '',
         sender: m.out ? 'You' : await senderName(c, m),
         replyToId: m.replyTo?.replyToMsgId || null,
-        media: m.media ? (m.photo ? 'photo' : 'attachment') : null,
+        media: mediaInfo(m),
         action: m.action ? 'service' : null, // joined/left/pinned etc.
       });
     }
     return out.reverse();
+  }
+
+  /** What kind of media a message carries (shape shared with the client). */
+  function mediaInfo(m) {
+    if (!m?.media) return null;
+    if (m.photo) return { kind: 'photo', mime: 'image/jpeg', filename: `photo-${m.id}.jpg`, size: 0 };
+    const doc = m.media.document;
+    if (doc) {
+      const attrs = doc.attributes || [];
+      const filename = attrs.find((a) => a.className === 'DocumentAttributeFilename')?.fileName || '';
+      const mime = doc.mimeType || 'application/octet-stream';
+      const audio = attrs.find((a) => a.className === 'DocumentAttributeAudio');
+      let kind = 'file';
+      if (attrs.some((a) => a.className === 'DocumentAttributeSticker')) kind = mime === 'image/webp' ? 'image' : 'file';
+      else if (audio?.voice) kind = 'voice';
+      else if (mime.startsWith('audio/')) kind = 'audio';
+      else if (mime.startsWith('video/')) kind = 'video';
+      else if (mime.startsWith('image/')) kind = 'image';
+      return { kind, mime, filename, size: Number(doc.size || 0) };
+    }
+    return { kind: 'other', mime: '', filename: '', size: 0 };
+  }
+
+  const MEDIA_MAX = 20 * 1024 * 1024; // bigger files: open in Telegram
+
+  /** Download one message's media (the route streams it to the browser). */
+  async function media(chatId, msgId) {
+    const c = await getClient();
+    const ent = await entity(c, chatId);
+    const [m] = await c.getMessages(ent, { ids: [Number(msgId)] });
+    if (!m || !m.media) {
+      const e = new Error('No media on that message');
+      e.status = 404;
+      throw e;
+    }
+    const info = mediaInfo(m);
+    if (info.size > MEDIA_MAX) {
+      const e = new Error(`File is ${(info.size / 1048576).toFixed(1)} MB — open it in Telegram to view`);
+      e.status = 413;
+      throw e;
+    }
+    const buffer = await c.downloadMedia(m, {});
+    if (!buffer || !buffer.length) {
+      const e = new Error('Could not download the media');
+      e.status = 404;
+      throw e;
+    }
+    return { buffer, mime: info.mime, filename: info.filename || `media-${msgId}` };
   }
 
   async function send(chatId, text, replyToId) {
@@ -187,5 +235,5 @@ if (process.env.TELEGRAM_MOCK === '1') {
     return { ok: true };
   }
 
-  module.exports = { configured, status, loginStart, loginComplete, logout, dialogs, overview, messages, send, markRead };
+  module.exports = { configured, status, loginStart, loginComplete, logout, dialogs, overview, messages, send, markRead, media };
 }

@@ -136,4 +136,20 @@ router.post(
   })
 );
 
+// Media of one message (photo/file/voice…), streamed with the user's auth
+router.get(
+  '/media',
+  wrap(async (req, res) => {
+    try {
+      const r = await tg.media(String(req.query.chat || ''), Number(req.query.msg));
+      res.setHeader('Content-Type', r.mime || 'application/octet-stream');
+      if (r.filename) res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(r.filename)}"`);
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.send(r.buffer);
+    } catch (e) {
+      res.status(e.status || 400).json({ error: e.message });
+    }
+  })
+);
+
 module.exports = router;

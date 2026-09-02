@@ -159,6 +159,7 @@ export const Telegram = {
   dialogs: () => api.get('/telegram/dialogs'),
   messages: (chat, params) => api.get('/telegram/messages', { params: { chat, ...params } }),
   send: (chat, text, replyTo) => api.post('/telegram/messages', { chat, text, replyTo }),
+  media: (chat, msg) => api.get('/telegram/media', { params: { chat, msg }, responseType: 'blob' }),
 };
 
 export const Dashboard = {

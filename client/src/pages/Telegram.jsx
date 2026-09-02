@@ -9,6 +9,67 @@ import { useIsMobile } from '../lib/useMedia';
 import { RefreshIcon, PlaneIcon } from '../components/icons';
 
 const POLL_MS = 8000;
+const MEDIA_INLINE_MAX = 20 * 1024 * 1024;
+const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+
+/** Media inside a bubble: photos/images inline, voice/audio/video playable, other files as a download chip. */
+function MediaView({ chat, m }) {
+  const media = m.media;
+  const inline = ['photo', 'image', 'voice', 'audio'].includes(media.kind) || (media.kind === 'video' && media.size < MEDIA_INLINE_MAX);
+  const [url, setUrl] = useState(null);
+  const [err, setErr] = useState('');
+  const toast = useToast();
+  useEffect(() => {
+    if (!inline) return;
+    let alive = true;
+    let obj;
+    Api.media(chat, m.id)
+      .then((blob) => {
+        if (!alive) return;
+        obj = URL.createObjectURL(blob);
+        setUrl(obj);
+      })
+      .catch(() => alive && setErr('could not load — open Telegram'));
+    return () => {
+      alive = false;
+      if (obj) URL.revokeObjectURL(obj);
+    };
+  }, [chat, m.id, inline]);
+  const download = async () => {
+    if (media.size > MEDIA_INLINE_MAX) return toast.error(`File is ${fmtSize(media.size)}`, 'Too big to fetch here — open it in Telegram');
+    try {
+      const blob = await Api.media(chat, m.id);
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u;
+      a.download = media.filename || `file-${m.id}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(u), 5000);
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+  if (err) return <div className="mb-1 rounded-lg bg-black/5 px-2 py-1.5 text-[12px]">📎 {media.filename || 'Attachment'} — {err}</div>;
+  if (media.kind === 'photo' || media.kind === 'image')
+    return url ? (
+      <img src={url} alt={media.filename || 'photo'} className="mb-1 max-h-[280px] max-w-full cursor-zoom-in rounded-lg" onClick={() => window.open(url, '_blank')} />
+    ) : (
+      <div className="mb-1 grid h-[150px] w-[220px] max-w-full animate-pulse place-items-center rounded-lg bg-black/10 text-[12px]">Loading photo…</div>
+    );
+  if (media.kind === 'voice' || media.kind === 'audio') return url ? <audio controls src={url} className="mb-1 h-10 max-w-full" /> : <div className="mb-1 text-[12px]">Loading audio…</div>;
+  if (media.kind === 'video' && inline)
+    return url ? <video controls src={url} className="mb-1 max-h-[280px] max-w-full rounded-lg" /> : <div className="mb-1 grid h-[150px] w-[220px] max-w-full animate-pulse place-items-center rounded-lg bg-black/10 text-[12px]">Loading video…</div>;
+  return (
+    <button className="mb-1 flex w-full items-center gap-2 rounded-lg bg-black/10 px-2 py-1.5 text-left text-[12px] hover:bg-black/20" onClick={download} title="Download">
+      <span className="text-base">📄</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{media.filename || 'Attachment'}</span>
+        <span className="opacity-70">{media.size ? fmtSize(media.size) : media.mime || 'file'}</span>
+      </span>
+      <span className="underline">Download</span>
+    </button>
+  );
+}
 
 /** Sign in with the support account: phone -> code -> (2FA password). */
 function SignIn({ status, onDone }) {
@@ -345,7 +406,7 @@ TELEGRAM_API_HASH = ...`}</pre>
                           <b>{quoted.sender}:</b> {quoted.text.slice(0, 80)}
                         </div>
                       )}
-                      {m.media && <div className={`mb-0.5 text-[12px] ${m.out ? 'text-white/85' : 'text-slate-500'}`}>📎 {m.media === 'photo' ? 'Photo' : 'Attachment'} (open Telegram to view)</div>}
+                      {m.media && <MediaView chat={selected.chatId} m={m} />}
                       <span className="whitespace-pre-wrap break-words">{m.text}</span>
                       <div className={`mt-0.5 flex items-center gap-2 text-[10px] ${m.out ? 'text-white/70' : 'text-slate-400'}`}>
                         {dayjs(m.date).format('HH:mm')}
