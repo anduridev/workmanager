@@ -155,9 +155,9 @@ Manual entries: **Add expense** (also in the phone's + sheet). Any transaction c
 
 A **Zendesk** section (Tickets · SLA Policies · SLA Report) for client support work, configured only by env vars (`ZENDESK_SUBDOMAIN`, `ZENDESK_EMAIL`, `ZENDESK_API_TOKEN`):
 
-- **Tickets** — pick a client (Zendesk organization) or all; filter by status (Unsolved / New / Open / Pending / On hold / Solved), search, open any ticket in the Zendesk agent view.
+- **Tickets** — rich list (requester avatars, tags, priority dots, per-status counts); click a ticket for the **full conversation** (public replies, internal notes highlighted, attachments) and act on it: **reply to the requester or add an internal note**, send & solve, change status/priority/type/assignee, add/remove **tags**, one-click **WorkPA task** from a ticket. **Create new tickets** too (client -> requester picker or new email, subject, first message, priority, assignee). Old: pick a client (Zendesk organization) or all; filter by status (Unsolved / New / Open / Pending / On hold / Solved), search, open any ticket in the Zendesk agent view.
 - **Update from WorkPA** — change status and assignee inline (agents + admins listed); closed tickets are read-only, exactly as in Zendesk.
-- **SLA Report** — client dropdown; live per-client view: breached / at-risk tickets with countdowns, status mix, open tickets sorted by SLA deadline, applicable policies.
+- **SLA Report** — client dropdown; tiles (open / tracked / breached / at-risk / solved 30d), status mix, **open-by-assignee / by-age / by-priority bars**, breached & at-risk list with countdowns, open tickets sorted by SLA deadline, applicable policies.
 - **SLA Policies** — read-only list of every policy with conditions, per-priority targets and an auto-written plain-English explanation (plus what each metric means).
 
 **Restricted accounts:** `node server/scripts/createUser.js <username> <password> [display name] --role=zendesk` creates a login that can only use the Zendesk screen. The API enforces it server-side (everything except `/api/zendesk` and `/api/auth` returns 403); such accounts see only Zendesk-kind notifications and no push/digest. They also get the Telegram support inbox (read/reply/link groups), but only the admin can sign the shared support account in or out.

@@ -169,11 +169,70 @@ async function tickets({ orgId, status, q, limit = 200 } = {}) {
   return list.slice(0, limit);
 }
 
-/** Update status and/or assignee. Zendesk refuses edits on closed tickets. */
-async function updateTicket(id, { status, assigneeId } = {}) {
+/** Full ticket with its conversation (public replies + internal notes) and attachments. */
+async function ticket(id) {
+  const [tRes, cRes] = await Promise.all([request('GET', `/api/v2/tickets/${id}.json`), request('GET', `/api/v2/tickets/${id}/comments.json?include=users&per_page=100`)]);
+  const t = tRes.ticket;
+  let users = cRes.users || [];
+  const missing = [t.requester_id, t.assignee_id].filter(Boolean).filter((x) => !users.some((u) => u.id === x));
+  if (missing.length) {
+    try {
+      users = users.concat((await request('GET', `/api/v2/users/show_many.json?ids=${missing.join(',')}`)).users || []);
+    } catch {}
+  }
+  const who = (uid) => users.find((u) => u.id === uid) || null;
+  return {
+    id: t.id,
+    subject: t.subject || '(no subject)',
+    status: t.status,
+    priority: t.priority || null,
+    type: t.type || null,
+    organizationId: t.organization_id || null,
+    tags: t.tags || [],
+    requester: t.requester_id ? { id: t.requester_id, name: who(t.requester_id)?.name || `#${t.requester_id}`, email: who(t.requester_id)?.email || '' } : null,
+    assignee: t.assignee_id ? { id: t.assignee_id, name: who(t.assignee_id)?.name || `#${t.assignee_id}` } : null,
+    createdAt: t.created_at,
+    updatedAt: t.updated_at,
+    url: `${config().url}/agent/tickets/${t.id}`,
+    comments: (cRes.comments || []).map((c) => ({
+      id: c.id,
+      body: c.body || '',
+      public: c.public !== false,
+      author: who(c.author_id)?.name || `#${c.author_id}`,
+      agent: ['agent', 'admin'].includes(who(c.author_id)?.role || ''),
+      createdAt: c.created_at,
+      attachments: (c.attachments || []).map((a) => ({ name: a.file_name, url: a.content_url, size: a.size || 0, contentType: a.content_type || '', thumb: a.thumbnails?.[0]?.content_url || '' })),
+    })),
+  };
+}
+
+/** End-users of an organization (requester picker when creating a ticket). */
+async function orgUsers(orgId) {
+  const users = await paged(`/api/v2/organizations/${orgId}/users.json?per_page=100`, 'users', { maxPages: 2 });
+  return users.map((u) => ({ id: u.id, name: u.name, email: u.email || '', role: u.role })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Create a ticket (requester by id, or by email — Zendesk creates the user if new). */
+async function createTicket({ subject, body, requesterId, requesterName, requesterEmail, orgId, priority, type, assigneeId }) {
+  const ticket = { subject, comment: { body } };
+  if (requesterId) ticket.requester_id = Number(requesterId);
+  else if (requesterEmail) ticket.requester = { name: requesterName || requesterEmail, email: requesterEmail };
+  if (orgId) ticket.organization_id = Number(orgId);
+  if (priority) ticket.priority = priority;
+  if (type) ticket.type = type;
+  if (assigneeId) ticket.assignee_id = Number(assigneeId);
+  return (await request('POST', '/api/v2/tickets.json', { ticket })).ticket;
+}
+
+/** Update status / assignee / priority / type / tags, optionally adding a reply or internal note. Closed tickets are refused by Zendesk. */
+async function updateTicket(id, { status, assigneeId, priority, type, tags, comment } = {}) {
   const ticket = {};
   if (status !== undefined) ticket.status = status;
   if (assigneeId !== undefined) ticket.assignee_id = assigneeId || null;
+  if (priority !== undefined) ticket.priority = priority || null;
+  if (type !== undefined) ticket.type = type || null;
+  if (tags !== undefined) ticket.tags = tags;
+  if (comment?.body) ticket.comment = { body: comment.body, public: comment.public !== false };
   if (!Object.keys(ticket).length) throw new Error('Nothing to update');
   const data = await request('PUT', `/api/v2/tickets/${id}.json`, { ticket });
   return data.ticket;
@@ -186,4 +245,4 @@ async function test() {
   return { ok: true, user: { name: me.name, email: me.email, role: me.role }, url: config().url };
 }
 
-module.exports = { config, enabled, request, organizations, agents, slaPolicies, policiesForOrg, tickets, updateTicket, test, clearCache };
+module.exports = { config, enabled, request, organizations, agents, slaPolicies, policiesForOrg, tickets, ticket, orgUsers, createTicket, updateTicket, test, clearCache };

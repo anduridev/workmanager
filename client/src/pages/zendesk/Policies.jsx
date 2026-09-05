@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Zendesk as Api } from '../../lib/api';
 import { Empty } from '../../components/ui';
 import { useToast } from '../../components/Toast';
-import { METRIC_LABEL, METRIC_EXPLAIN, minsLabel, useZendesk, ConnLine, NotConfigured } from './lib';
+import { METRIC_LABEL, METRIC_EXPLAIN, PRIORITY_CLS, PRIORITY_DOT, minsLabel, useZendesk, ConnLine, NotConfigured } from './lib';
 
 const FIELD_LABEL = {
   organization_id: 'client',
@@ -90,7 +90,7 @@ export default function Policies() {
       {(policies || []).length > 0 && (
         <div className="flex flex-col gap-4">
           {policies.map((p, i) => (
-            <div key={p.id} className="card">
+            <div key={p.id} className="card border-l-4 !border-l-primary-400">
               <div className="row items-center gap-2">
                 <span className="badge bg-slate-100 text-slate-600">Policy {i + 1}</span>
                 <h2 className="text-[15px] font-semibold">{p.title}</h2>
@@ -127,7 +127,10 @@ export default function Policies() {
                     <tbody>
                       {p.metrics.map((m, j) => (
                         <tr key={j} className="border-t border-slate-100">
-                          <td className="py-1 capitalize">{m.priority}</td>
+                          <td className={`py-1 capitalize ${PRIORITY_CLS[m.priority] || ''}`}>
+                            <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${PRIORITY_DOT[m.priority] || 'bg-slate-300'}`} />
+                            {m.priority}
+                          </td>
                           <td className="py-1">{METRIC_LABEL[m.metric] || m.metric}</td>
                           <td className="py-1 text-right font-medium">{minsLabel(m.targetMinutes)}</td>
                           <td className="py-1 pl-2 text-slate-400">{m.businessHours ? 'business' : 'calendar'}</td>

@@ -4,7 +4,17 @@ import { dayjs, fmtDateTime } from '../../lib/date';
 import { Empty } from '../../components/ui';
 import { useToast } from '../../components/Toast';
 import { RefreshIcon } from '../../components/icons';
-import { STATUS_LABEL, STATUS_CLS, PRIORITY_CLS, METRIC_LABEL, minsLabel, SlaChip, useZendesk, ConnLine, NotConfigured } from './lib';
+import { STATUS_LABEL, STATUS_CLS, PRIORITY_CLS, PRIORITY_DOT, METRIC_LABEL, minsLabel, SlaChip, useZendesk, ConnLine, NotConfigured } from './lib';
+
+const Bar = ({ label, n, max, cls = 'bg-primary-500' }) => (
+  <div className="row items-center gap-2 text-[13px]">
+    <span className="w-24 shrink-0 truncate capitalize text-slate-500">{label}</span>
+    <div className="h-4 flex-1 overflow-hidden rounded bg-slate-100">
+      <div className={`h-full rounded ${cls}`} style={{ width: `${max ? Math.max(4, (n / max) * 100) : 0}%` }} />
+    </div>
+    <b className="w-6 shrink-0 text-right">{n}</b>
+  </div>
+);
 
 const Tile = ({ label, value, tone = '' }) => (
   <div className="card !p-4">
@@ -49,6 +59,30 @@ export default function Report() {
     return m;
   }, [tickets]);
   const solved30 = useMemo(() => (tickets || []).filter((t) => ['solved', 'closed'].includes(t.status) && dayjs(t.updatedAt).isAfter(dayjs().subtract(30, 'day'))).length, [tickets]);
+  const aging = useMemo(() => {
+    const b = [['< 1 day', 0], ['1–3 days', 0], ['3–7 days', 0], ['> 7 days', 0]];
+    open.forEach((t) => {
+      const h = dayjs().diff(dayjs(t.createdAt), 'hour');
+      b[h < 24 ? 0 : h < 72 ? 1 : h < 168 ? 2 : 3][1]++;
+    });
+    return b;
+  }, [open]);
+  const byAssignee = useMemo(() => {
+    const m = {};
+    open.forEach((t) => {
+      const k = t.assignee?.name || 'Unassigned';
+      m[k] = (m[k] || 0) + 1;
+    });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [open]);
+  const byPriority = useMemo(() => {
+    const m = {};
+    open.forEach((t) => {
+      const k = t.priority || 'none';
+      m[k] = (m[k] || 0) + 1;
+    });
+    return ['urgent', 'high', 'normal', 'low', 'none'].filter((k) => m[k]).map((k) => [k, m[k]]);
+  }, [open]);
   const openBySla = useMemo(() => [...open].sort((a, b) => (a.sla?.breachAt ? new Date(a.sla.breachAt) : Infinity) - (b.sla?.breachAt ? new Date(b.sla.breachAt) : Infinity)), [open]);
 
   if (status && !status.enabled) return <NotConfigured title="Zendesk · SLA Report" />;
@@ -100,6 +134,36 @@ export default function Report() {
               {!tickets?.length && <span className="muted text-[13px]">No tickets found.</span>}
             </div>
           </div>
+
+          {open.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="card">
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-400">Open by assignee</div>
+                <div className="flex flex-col gap-1.5">
+                  {byAssignee.map(([name, n]) => (
+                    <Bar key={name} label={name} n={n} max={byAssignee[0][1]} cls={name === 'Unassigned' ? 'bg-slate-400' : 'bg-primary-500'} />
+                  ))}
+                </div>
+              </div>
+              <div className="card">
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-400">Open by age</div>
+                <div className="flex flex-col gap-1.5">
+                  {aging.map(([label, n], i) => (
+                    <Bar key={label} label={label} n={n} max={Math.max(...aging.map((x) => x[1]))} cls={['bg-emerald-400', 'bg-sky-400', 'bg-amber-400', 'bg-red-500'][i]} />
+                  ))}
+                </div>
+                <p className="muted mt-2 text-[11px]">Old open tickets are usually the first SLA risk — clear the red bar first.</p>
+              </div>
+              <div className="card">
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-400">Open by priority</div>
+                <div className="flex flex-col gap-1.5">
+                  {byPriority.map(([p, n]) => (
+                    <Bar key={p} label={p} n={n} max={byPriority.reduce((mx, x) => Math.max(mx, x[1]), 0)} cls={PRIORITY_DOT[p] || 'bg-slate-300'} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {(sla.live.breached.length > 0 || sla.live.atRisk.length > 0) && (
             <div className="card">

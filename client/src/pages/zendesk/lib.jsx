@@ -14,6 +14,22 @@ export const STATUS_CLS = {
   closed: 'bg-slate-100 text-slate-500',
 };
 export const PRIORITY_CLS = { urgent: 'text-red-600', high: 'text-amber-600', normal: 'text-slate-500', low: 'text-slate-400' };
+export const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
+export const TYPES = ['question', 'incident', 'problem', 'task'];
+export const PRIORITY_DOT = { urgent: 'bg-red-500', high: 'bg-amber-500', normal: 'bg-sky-400', low: 'bg-slate-300' };
+export const fmtBytes = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+
+/** Initials avatar (requesters/agents). */
+export function Avatar({ name, size = 'h-8 w-8 text-[12px]', cls = 'bg-primary-100 text-primary-700' }) {
+  const initials = String(name || '?')
+    .split(/\s+/)
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  return <span className={`grid ${size} shrink-0 place-items-center rounded-full font-bold ${cls}`}>{initials}</span>;
+}
 
 export const METRIC_LABEL = {
   first_reply_time: 'First reply',

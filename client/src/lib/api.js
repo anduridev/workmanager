@@ -143,6 +143,9 @@ export const Zendesk = {
   agents: () => api.get('/zendesk/agents'),
   tickets: (params) => api.get('/zendesk/tickets', { params }),
   update: (id, data) => api.put(`/zendesk/tickets/${id}`, data),
+  get: (id) => api.get(`/zendesk/tickets/${id}`),
+  create: (data) => api.post('/zendesk/tickets', data),
+  orgUsers: (id) => api.get(`/zendesk/orgs/${id}/users`),
   sla: (org) => api.get('/zendesk/sla', { params: org ? { org } : {} }),
   policies: () => api.get('/zendesk/policies'),
 };
