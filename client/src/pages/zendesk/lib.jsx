@@ -39,6 +39,7 @@ export const METRIC_LABEL = {
   requester_wait_time: 'Requester wait',
   agent_work_time: 'Agent work',
   resolution_time: 'Resolution',
+  total_resolution_time: 'Resolution',
 };
 // What each SLA metric actually measures (shown on the read-only Policies screen)
 export const METRIC_EXPLAIN = {
@@ -49,6 +50,7 @@ export const METRIC_EXPLAIN = {
   requester_wait_time: 'Total time the ticket spends in New, Open or On hold — how long the client is kept waiting overall.',
   agent_work_time: 'Total time the ticket spends in New or Open — time it sits with your team.',
   resolution_time: 'Time from creation until the ticket is solved.',
+  total_resolution_time: 'Time from creation until the ticket is completely solved.',
 };
 
 export const minsLabel = (m) => (m >= 1440 && m % 1440 === 0 ? `${m / 1440}d` : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`);
